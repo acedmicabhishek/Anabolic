@@ -12,8 +12,8 @@ import {
   LayoutAnimation,
   UIManager
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { THEME } from '../../constants/theme';
 import { BodyPartPicker } from '../molecules/BodyPartPicker';
 import { BodyPart } from '../../types/metrics';
@@ -42,6 +42,12 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
   const [currentUnit, setCurrentUnit] = useState<string>('');
   const [date, setDate] = useState(new Date());
 
+  // Macro States
+  const [protein, setProtein] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [fat, setFat] = useState('');
+  const [isMacroExpanded, setIsMacroExpanded] = useState(false);
+
   React.useEffect(() => {
     if (visible && logDate) {
       setDate(logDate);
@@ -51,21 +57,16 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
   }, [visible, logDate]);
 
   const CATEGORIES = [
-    { label: 'Calories', value: 'calories' },
-    { label: 'Water', value: 'water' },
-    { label: 'Weight', value: 'weight' },
-    { label: 'Body Part', value: 'body' },
-    { label: 'Height', value: 'height' },
+    { label: 'CAL', value: 'calories', icon: 'flash' },
+    { label: 'H2O', value: 'water', icon: 'water' },
+    { label: 'WGT', value: 'weight', icon: 'scale' },
+    { label: 'BDY', value: 'body', icon: 'body' },
+    { label: 'HGT', value: 'height', icon: 'resize' },
   ];
-  const CATEGORY_LABELS = CATEGORIES.map(c => c.label);
-  const currentLabel = CATEGORIES.find(c => c.value === type)?.label || 'Calories';
-  
-  const handleCategoryChange = (label: string) => {
-    const t = CATEGORIES.find(c => c.label === label)?.value;
-    if (t) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setType(t as any);
-    }
+
+  const handleCategoryChange = (val: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setType(val as any);
   };
 
   
@@ -83,6 +84,10 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
     setValue('');
     setFeetValue('');
     setInchesValue('');
+    setProtein('');
+    setCarbs('');
+    setFat('');
+    setIsMacroExpanded(false);
   }, [type]);
 
   
@@ -101,31 +106,24 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
   const [loading, setLoading] = useState(false);
 
   const getQuickAddOptions = () => {
-    if (type === 'calories') return [
-      { v: 100, i: 'apple-alt' },
-      { v: 300, i: 'hamburger' },
-      { v: 500, i: 'pizza-slice' }
-    ];
-    if (type === 'water') return [
-      { v: 250, i: 'tint' },
-      { v: 500, i: 'glass-whiskey' },
-      { v: 750, i: 'wine-glass' }
-    ];
-    if (type === 'weight') return [
-      { v: 0.1, i: 'weight' },
-      { v: 0.5, i: 'dumbbell' },
-      { v: 1.0, i: 'running' }
-    ];
-    return [
-      { v: 1, i: 'ruler' },
-      { v: 2, i: 'pencil-alt' },
-      { v: 5, i: 'plus' }
-    ];
+    if (type === 'calories') return [100, 300, 500];
+    if (type === 'water') return [250, 500, 750];
+    if (type === 'weight') return [0.1, 0.5, 1.0];
+    return [1, 2, 5];
   };
 
   const handleQuickAdd = (val: number) => {
     const currentVal = Number(value) || 0;
     setValue((currentVal + val).toString());
+  };
+
+  const calculateCaloriesFromMacros = () => {
+    const p = Number(protein) || 0;
+    const c = Number(carbs) || 0;
+    const f = Number(fat) || 0;
+    const total = (p * 4) + (c * 4) + (f * 9);
+    setValue(total.toString());
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
   };
 
   const handleSave = async () => {
@@ -157,22 +155,18 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
     }
 
     try {
-      if (type === 'weight') {
-        await addWeightLog(numericValue, 'kg', date.toISOString());
-      } else if (type === 'height') {
-        await updateHeight(numericValue);
-      } else if (type === 'calories') {
-        if (logSubType) {
-          await addMealEntry(logSubType, numericValue, date.toISOString());
-        } else {
-          await addMealEntry('Quick Add', numericValue, date.toISOString());
-        }
-      } else if (type === 'water') {
-        await updateWater((metrics.currentWater || 0) + numericValue, date.toISOString());
-      } else {
-        await addBodyMeasurement(selectedPart, numericValue, 'cm', date.toISOString());
-      }
-      setValue('');
+      const macroData = isMacroExpanded ? {
+        protein: Number(protein) || 0,
+        carbs: Number(carbs) || 0,
+        fat: Number(fat) || 0,
+      } : undefined;
+
+      if (type === 'weight') await addWeightLog(numericValue, 'kg', date.toISOString());
+      else if (type === 'height') await updateHeight(numericValue);
+      else if (type === 'calories') await addMealEntry(logSubType || 'Quick Add', numericValue, date.toISOString(), undefined, macroData);
+      else if (type === 'water') await updateWater((metrics.currentWater || 0) + numericValue, date.toISOString());
+      else await addBodyMeasurement(selectedPart, numericValue, 'cm', date.toISOString());
+      
       onClose();
     } catch (e) {
       console.error(e);
@@ -197,114 +191,166 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
           activeOpacity={1}
           onPress={onClose}
         />
-        <View style={styles.content}>
-          <View style={styles.navBar}>
-            <TouchableOpacity onPress={onClose} style={styles.navBtn}>
-              <Text style={styles.navBtnText}>Cancel</Text>
+        <View style={styles.glassContent}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose} style={styles.headerActionBtn}>
+              <Ionicons name="chevron-down" size={24} color={THEME.colors.textSecondary} />
             </TouchableOpacity>
-
-            <View style={styles.navTitleContainer}>
-              <Text style={styles.navTitle}>{logSubType ? `Log ${logSubType}` : 'Add Entry'}</Text>
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>{logSubType ? logSubType : 'LOG ENTRY'}</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateSelector}>
+                <Ionicons name="calendar-outline" size={12} color={THEME.colors.primary} />
+                <Text style={styles.dateText}>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}</Text>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity onPress={handleSave} disabled={loading} style={styles.navBtn}>
-              <Text style={[styles.navBtnText, styles.saveBtnText, loading && { opacity: 0.5 }]}>Save</Text>
+            <TouchableOpacity onPress={handleSave} disabled={loading} style={styles.headerActionBtn}>
+              <Ionicons name="checkmark" size={24} color={THEME.colors.primary} />
             </TouchableOpacity>
           </View>
 
           {!logSubType && (
-            <View style={styles.categoryRow}>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryScroll}
-              >
-                {CATEGORIES.map((cat) => {
-                  const isActive = type === cat.value;
-                  return (
+            <View style={styles.segmentedPickerWrapper}>
+                <View style={styles.segmentedPicker}>
+                {CATEGORIES.map((cat) => (
                     <TouchableOpacity
-                      key={cat.value}
-                      onPress={() => handleCategoryChange(cat.label)}
-                      style={[styles.categoryChip, isActive && styles.categoryChipActive]}
+                    key={cat.value}
+                    onPress={() => handleCategoryChange(cat.value)}
+                    style={[styles.segment, type === cat.value && styles.segmentActive]}
                     >
-                      <Text style={[styles.categoryChipText, isActive && styles.categoryChipTextActive]}>
-                        {cat.label}
-                      </Text>
+                    <Ionicons 
+                        name={cat.icon as any} 
+                        size={14} 
+                        color={type === cat.value ? THEME.colors.background : THEME.colors.textMuted} 
+                    />
+                    {type === cat.value && (
+                        <Text style={styles.segmentText}>{cat.label.split(' ')[0]}</Text>
+                    )}
                     </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                ))}
+                </View>
             </View>
           )}
 
-          <View style={styles.centeredInputCard}>
-            {type === 'height' && currentUnit === 'ft' ? (
-              <View style={styles.dualInputRow}>
-                <View style={styles.dualInputContainer}>
-                  <TextInput
-                    style={styles.mainInput}
-                    keyboardType="number-pad"
-                    value={feetValue}
-                    onChangeText={setFeetValue}
-                    placeholder="5"
-                    placeholderTextColor="rgba(255,255,255,0.2)"
-                    autoFocus
-                    selectionColor={THEME.colors.primary}
-                  />
-                  <Text style={styles.unitLabel}>ft</Text>
-                </View>
-                <View style={styles.dualInputContainer}>
-                  <TextInput
-                    style={styles.mainInput}
-                    keyboardType="number-pad"
-                    value={inchesValue}
-                    onChangeText={setInchesValue}
-                    placeholder="10"
-                    placeholderTextColor="rgba(255,255,255,0.2)"
-                    selectionColor={THEME.colors.primary}
-                  />
-                  <Text style={styles.unitLabel}>inch</Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.valueRow}>
-                <TextInput
-                  style={[styles.mainInput, { flex: 1 }]}
-                  value={value}
-                  onChangeText={setValue}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={THEME.colors.textMuted}
-                  autoFocus
-                  selectionColor={THEME.colors.primary}
-                  numberOfLines={1}
-                />
-                <Text style={styles.unitLabel}>{currentUnit || (type === 'calories' ? 'kcal' : '')}</Text>
-              </View>
-            )}
-          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+            <View style={styles.heroGlassCard}>
+                <View style={styles.heroGlow} />
+                {type === 'height' && currentUnit === 'ft' ? (
+                  <View style={styles.dualArtRow}>
+                    <View style={styles.heroArtBox}>
+                        <TextInput
+                            style={styles.heroArtInput}
+                            keyboardType="number-pad"
+                            value={feetValue}
+                            onChangeText={setFeetValue}
+                            placeholder="0"
+                            placeholderTextColor="rgba(255,255,255,0.05)"
+                            autoFocus
+                        />
+                        <Text style={styles.heroArtUnit}>FT</Text>
+                    </View>
+                    <View style={styles.heroArtBox}>
+                        <TextInput
+                            style={styles.heroArtInput}
+                            keyboardType="number-pad"
+                            value={inchesValue}
+                            onChangeText={setInchesValue}
+                            placeholder="0"
+                            placeholderTextColor="rgba(255,255,255,0.05)"
+                        />
+                        <Text style={styles.heroArtUnit}>IN</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.heroArtWrapper}>
+                    <TextInput
+                      style={styles.heroArtInput}
+                      value={value}
+                      onChangeText={setValue}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="rgba(255,255,255,0.05)"
+                      autoFocus
+                    />
+                    <Text style={styles.heroArtUnit}>{currentUnit.toUpperCase()}</Text>
+                  </View>
+                )}
+            </View>
 
-          <View style={styles.accessoryContainer}>
-            {type === 'body' && (
-              <View style={styles.partPickerWrapper}>
-                <BodyPartPicker selectedPart={selectedPart} onSelect={(p) => setSelectedPart(p)} />
-              </View>
-            )}
-          </View>
+            <View style={styles.quickBarArtistic}>
+              {getQuickAddOptions().map((v) => (
+                <TouchableOpacity key={v} onPress={() => handleQuickAdd(v)} style={styles.quickArtBtn}>
+                  <Text style={styles.quickArtBtnText}>+{v}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          <View style={styles.quickAddContainer}>
-            {getQuickAddOptions().map((opt) => (
-              <TouchableOpacity
-                key={opt.v}
-                onPress={() => handleQuickAdd(opt.v)}
-                style={styles.quickAddBubble}
-              >
-                <FontAwesome5 name={opt.i} size={16} color={THEME.colors.primary} style={{ marginBottom: 4 }} />
-                <Text style={styles.quickAddValue}>+{opt.v}</Text>
-                <Text style={styles.quickAddUnit}>{type === 'calories' ? 'kcal' : (currentUnit || 'unit')}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            <View style={styles.luxuryOptions}>
+                {type === 'body' && (
+                    <View style={styles.bodyPartLUX}>
+                        <BodyPartPicker selectedPart={selectedPart} onSelect={setSelectedPart} />
+                    </View>
+                )}
+
+                {type === 'calories' && (
+                    <View style={styles.macroIntegratedLUX}>
+                        <TouchableOpacity 
+                            style={styles.macroToggleLux} 
+                            onPress={() => {
+                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                setIsMacroExpanded(!isMacroExpanded);
+                            }}
+                        >
+                            <View style={styles.luxRow}>
+                                <View style={styles.luxIconBg}>
+                                    <Ionicons name="nutrition" size={18} color={THEME.colors.primary} />
+                                </View>
+                                <Text style={styles.luxOptionTitle}>Nutritional Blueprint</Text>
+                            </View>
+                            <Ionicons name={isMacroExpanded ? 'chevron-up' : 'chevron-forward'} size={18} color={THEME.colors.textMuted} />
+                        </TouchableOpacity>
+
+                        {isMacroExpanded && (
+                            <View style={styles.macroLuxGrid}>
+                                {[
+                                    { label: 'PRO', val: protein, set: setProtein, color: '#A78BFA' },
+                                    { label: 'CHO', val: carbs, set: setCarbs, color: '#FCD34D' },
+                                    { label: 'FAT', val: fat, set: setFat, color: '#F87171' },
+                                ].map(m => (
+                                    <View key={m.label} style={[styles.macroLuxBox, { borderColor: m.color + '30' }]}>
+                                        <Text style={[styles.macroLuxLabel, { color: m.color }]}>{m.label}</Text>
+                                        <TextInput
+                                            style={styles.macroLuxInput}
+                                            keyboardType="decimal-pad"
+                                            value={m.val}
+                                            onChangeText={m.set}
+                                            placeholder="0"
+                                            placeholderTextColor="rgba(255,255,255,0.05)"
+                                        />
+                                        <Text style={styles.macroLuxUnit}>GRAMS</Text>
+                                    </View>
+                                ))}
+                                <TouchableOpacity style={styles.calcArtBtn} onPress={calculateCaloriesFromMacros}>
+                                    <Ionicons name="sync" size={16} color={THEME.colors.primary} />
+                                    <Text style={styles.calcArtBtnText}>Auto-calculate Calories</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                )}
+            </View>
+          </ScrollView>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display="default"
+              onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+                setShowDatePicker(false);
+                if (selectedDate) setDate(selectedDate);
+              }}
+            />
+          )}
 
 
 
@@ -317,169 +363,274 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.92)',
     justifyContent: 'flex-end',
   },
   dismiss: {
     flex: 1,
   },
-  content: {
-    backgroundColor: 'rgba(11, 15, 20, 0.98)',
+  glassContent: {
+    backgroundColor: '#0D1117',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    padding: THEME.spacing.md,
-    paddingBottom: Platform.OS === 'ios' ? 40 : THEME.spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    paddingTop: THEME.spacing.xs,
+    paddingHorizontal: THEME.spacing.lg,
+    maxHeight: '85%',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: THEME.colors.primary,
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  navBar: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: THEME.spacing.md,
-  },
-  navBtn: {
-    paddingVertical: 8,
-    minWidth: 60,
-  },
-  navBtnText: {
-    fontFamily: THEME.typography.bold,
-    color: THEME.colors.textSecondary,
-    fontSize: 16,
-  },
-  saveBtnText: {
-    color: THEME.colors.primary,
-    textAlign: 'right',
-  },
-  navTitleContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  navTitle: {
-    fontFamily: THEME.typography.black,
-    color: THEME.colors.text,
-    fontSize: 16,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  categoryRow: {
+    marginTop: THEME.spacing.md,
     marginBottom: THEME.spacing.lg,
-    marginHorizontal: -THEME.spacing.md, 
   },
-  categoryScroll: {
-    paddingHorizontal: THEME.spacing.md,
-    gap: 8,
-    alignItems: 'center',
-    height: 40,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: THEME.colors.surface,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  categoryChipActive: {
-    backgroundColor: THEME.colors.primary,
-    borderColor: THEME.colors.primary,
-  },
-  categoryChipText: {
-    fontFamily: THEME.typography.bold,
-    color: THEME.colors.textSecondary,
-    fontSize: 13,
-  },
-  categoryChipTextActive: {
-    color: THEME.colors.background,
-  },
-  miniTabs: {
-    flexDirection: 'row',
-    marginBottom: THEME.spacing.xl,
-    maxHeight: 40,
-  },
-  miniTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: THEME.colors.surface,
-  },
-  miniTabActive: {
-    backgroundColor: THEME.colors.primary,
-  },
-  miniTabText: {
-    fontFamily: THEME.typography.bold,
-    color: THEME.colors.textSecondary,
-    fontSize: 10,
-    letterSpacing: 1,
-  },
-  miniTabTextActive: {
-    color: THEME.colors.background,
-  },
-  centeredInputCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: THEME.spacing.md,
-  },
-  mainInput: {
-    fontFamily: THEME.typography.black,
-    color: THEME.colors.text,
-    fontSize: 48,
-    textAlign: 'center',
-    minWidth: 100,
-  },
-  valueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  dualInputRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: THEME.spacing.xxl, 
-  },
-  dualInputContainer: {
-    alignItems: 'center',
-  },
-  unitLabel: {
-    fontFamily: THEME.typography.bold,
-    color: THEME.colors.textMuted,
-    fontSize: 16,
-    marginTop: THEME.spacing.xs,
-  },
-  accessoryContainer: {
-    minHeight: 70, 
-    justifyContent: 'center',
-  },
-  partPickerWrapper: {
-    marginBottom: THEME.spacing.sm,
-  },
-  quickAddContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginVertical: THEME.spacing.sm,
-  },
-  quickAddBubble: {
+  headerActionBtn: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(52, 211, 153, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.25)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  quickAddValue: {
-    fontFamily: THEME.typography.bold,
-    color: THEME.colors.primary,
-    fontSize: 16,
+  headerCenter: {
+    alignItems: 'center',
   },
-  quickAddUnit: {
-    fontFamily: THEME.typography.bold,
+  headerTitle: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.text,
+    fontSize: 11,
+    letterSpacing: 3,
+    opacity: 0.6,
+    textTransform: 'uppercase',
+  },
+  dateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    backgroundColor: 'rgba(141, 224, 166, 0.05)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(141, 224, 166, 0.1)',
+  },
+  dateText: {
+    fontFamily: THEME.typography.black,
     color: THEME.colors.primary,
-    fontSize: 10,
-    opacity: 0.8,
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  segmentedPickerWrapper: {
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderRadius: 16,
+    padding: 2,
+    marginBottom: THEME.spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
+  },
+  segmentedPicker: {
+    flexDirection: 'row',
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  segment: {
+    flex: 1,
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: 12,
+  },
+  segmentActive: {
+    backgroundColor: THEME.colors.primary,
+    shadowColor: THEME.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  segmentText: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.background,
+    fontSize: 8.5,
+    letterSpacing: 0.5,
+  },
+  heroGlassCard: {
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.01)',
+    borderRadius: 24,
+    marginBottom: THEME.spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.03)',
+    overflow: 'hidden',
+  },
+  heroGlow: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: THEME.colors.primary,
+    opacity: 0.02,
+    filter: 'blur(20px)',
+  },
+  heroArtWrapper: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  heroArtInput: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.text,
+    fontSize: 36,
+    textAlign: 'center',
+    letterSpacing: -1,
+    includeFontPadding: false,
+    minWidth: 60,
+  },
+  heroArtUnit: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.primary,
+    fontSize: 12,
+    opacity: 0.6,
+    letterSpacing: 2,
+  },
+  dualArtRow: {
+    flexDirection: 'row',
+    gap: 24,
+  },
+  heroArtBox: {
+    alignItems: 'center',
+  },
+  quickBarArtistic: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: THEME.spacing.lg,
+  },
+  quickArtBtn: {
+    width: 80,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
+  },
+  quickArtBtnText: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.text,
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
+  luxuryOptions: {
+    marginBottom: 60,
+  },
+  bodyPartLUX: {
+      marginBottom: THEME.spacing.lg,
+  },
+  macroIntegratedLUX: {
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
+    overflow: 'hidden',
+  },
+  macroToggleLux: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+  },
+  luxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  luxIconBg: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: 'rgba(141, 224, 166, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+  },
+  luxOptionTitle: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.text,
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
+  macroLuxGrid: {
+    padding: 20,
+    paddingTop: 0,
+    gap: 12,
+  },
+  macroLuxBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.01)',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    height: 56,
+  },
+  macroLuxLabel: {
+    fontFamily: THEME.typography.black,
+    fontSize: 8,
+    width: 40,
+    letterSpacing: 0.5,
+    opacity: 0.5,
+  },
+  macroLuxInput: {
+    flex: 1,
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.text,
+    fontSize: 18,
+    textAlign: 'center',
+    includeFontPadding: false,
+    height: '100%',
+  },
+  macroLuxUnit: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.textMuted,
+    fontSize: 7,
+    width: 40,
+    textAlign: 'right',
+    opacity: 0.4,
+  },
+  calcArtBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 20,
+    backgroundColor: 'rgba(141, 224, 166, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(141, 224, 166, 0.1)',
+    marginTop: 8,
+  },
+  calcArtBtnText: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.primary,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
 });
