@@ -1,0 +1,236 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { THEME } from '../constants/theme';
+import { useMetrics } from '../context/MetricsContext';
+import { ChartWidget } from '../components/organisms/ChartWidget';
+import { converters } from '../utils/converters';
+import { BODY_PARTS } from '../types/metrics';
+
+export const AnalyticsScreen: React.FC = () => {
+  const { metrics, isLoading } = useMetrics();
+  const [filter, setFilter] = useState<'WEEK' | 'MONTH' | 'YEAR'>('MONTH');
+  
+  const coreVitals = ['Weight', 'Calories', 'Water', 'Height'];
+  const [activeVital, setActiveVital] = useState<string>('Weight');
+  const [activeBodyParts, setActiveBodyParts] = useState<string[]>(['Biceps', 'Waist']);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.loadingText}>Loading Trends...</Text>
+      </View>
+    );
+  }
+
+  const toggleBodyPart = (b: string) => {
+    if (activeBodyParts.includes(b)) {
+      if (activeBodyParts.length > 1) setActiveBodyParts(activeBodyParts.filter(x => x !== b));
+    } else {
+      setActiveBodyParts([...activeBodyParts, b]);
+    }
+  };
+
+  const days = filter === 'WEEK' ? 7 : filter === 'MONTH' ? 30 : 365;
+  
+  const generateDates = () => {
+    const dates = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return dates;
+  };
+  
+  const dateLabels = generateDates();
+  
+  
+  const chartLabels = dateLabels.map((dStr, index) => {
+    const isFirst = index === 0;
+    const isLast = index === dateLabels.length - 1;
+    const isMiddle = index === Math.floor(dateLabels.length / 2);
+    
+    
+    if (isFirst || isLast || isMiddle) {
+      const d = new Date(dStr);
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    }
+    return '';
+  });
+
+  const getContinuousHistory = (historyArr: {date: string, value: number}[]) => {
+    if (!historyArr || historyArr.length === 0) return dateLabels.map(() => 0);
+    const sorted = [...historyArr].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let lastKnown = sorted[0].value;
+    
+    return dateLabels.map(dStr => {
+      const dayLogs = sorted.filter(l => l.date.includes(dStr));
+      if (dayLogs.length > 0) {
+        lastKnown = dayLogs[dayLogs.length - 1].value;
+      }
+      return lastKnown;
+    });
+  };
+
+  const getContinuousSum = (mealsArr: {date: string, calories: number}[]) => {
+    if (!mealsArr) return dateLabels.map(() => 0);
+    return dateLabels.map(dStr => {
+      return mealsArr.filter(m => m.date.includes(dStr)).reduce((sum, m) => sum + m.calories, 0);
+    });
+  };
+
+  const rawWeight = getContinuousHistory(metrics.weightHistory || []);
+  const rawHeight = getContinuousHistory(metrics.heightHistory || []);
+  const rawWater = getContinuousHistory(metrics.waterHistory || []);
+  const rawCalories = getContinuousSum(metrics.meals || []);
+
+  const colorMap: Record<string, string> = {
+    'Weight': THEME.colors.primary,
+    'Calories': '#f59e0b', 
+    'Water': '#3b82f6', 
+    'Height': '#ec4899', 
+  };
+
+  let vitalRaw: number[] = [];
+  let vitalUnit = '';
+  if (activeVital === 'Weight') { vitalRaw = rawWeight; vitalUnit = metrics.preferences.weight; }
+  if (activeVital === 'Calories') { vitalRaw = rawCalories; vitalUnit = 'kcal'; }
+  if (activeVital === 'Water') { vitalRaw = rawWater; vitalUnit = metrics.preferences.fluid; }
+  if (activeVital === 'Height') { vitalRaw = rawHeight; vitalUnit = metrics.preferences.height; }
+
+  const singleVitalDataset = [{
+    name: activeVital,
+    color: colorMap[activeVital] || THEME.colors.primary,
+    data: vitalRaw && vitalRaw.length > 0 ? vitalRaw : [0]
+  }];
+
+  const bodyDatasets = activeBodyParts.map((bp, i) => {
+    const hue = (i * 137.5) % 360; 
+    const c = `hsl(${hue}, 70%, 50%)`;
+    
+    const logs = (metrics.bodyMeasurements || []).filter(m => m.part === bp);
+    return {
+      name: bp,
+      color: c,
+      data: getContinuousHistory(logs)
+    };
+  });
+
+  const currentWeight = metrics.weightHistory && metrics.weightHistory.length > 0 ? metrics.weightHistory[0].value : 0;
+  
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerSpacer} />
+        <Text style={styles.title}>Progress Trends</Text>
+
+        <View style={styles.segmentControl}>
+          {['WEEK', 'MONTH', 'YEAR'].map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[styles.segmentBtn, filter === f && styles.segmentBtnActive]}
+              onPress={() => setFilter(f as any)}
+            >
+              <Text style={[styles.segmentText, filter === f && styles.segmentTextActive]}>{f}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.sectionHeader}>Health Vitals Tracking</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
+          {coreVitals.map(v => {
+            const isActive = activeVital === v;
+            return (
+              <TouchableOpacity
+                key={v}
+                style={[styles.pillBtn, isActive && { backgroundColor: colorMap[v], borderColor: colorMap[v] }]}
+                onPress={() => setActiveVital(v)}
+              >
+                <Text style={[styles.pillText, isActive && styles.pillTextActive]}>{v}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.chartWrapper}>
+          <ChartWidget
+            labels={chartLabels}
+            datasets={singleVitalDataset}
+            unit={vitalUnit}
+            hideTitle
+          />
+        </View>
+
+        <Text style={styles.sectionHeader}>Body Composition (Raw)</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
+          {BODY_PARTS.map(bp => {
+            const isActive = activeBodyParts.includes(bp);
+            return (
+              <TouchableOpacity
+                key={bp}
+                style={[styles.pillBtn, isActive && styles.pillBtnActive]}
+                onPress={() => toggleBodyPart(bp)}
+              >
+                <Text style={[styles.pillText, isActive && styles.pillTextActive]}>{bp}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.chartWrapper}>
+          <ChartWidget
+            labels={chartLabels}
+            datasets={bodyDatasets}
+            unit={metrics.preferences.body}
+            hideTitle
+          />
+        </View>
+
+        <Text style={styles.insightsTitle}>Current Baselines</Text>
+        <View style={styles.insightsRow}>
+          <View style={styles.insightCard}>
+            <Text style={styles.insightLabel}>Base Weight</Text>
+            <Text style={styles.insightValue}>{currentWeight} <Text style={styles.insightUnit}>{metrics.preferences.weight}</Text></Text>
+          </View>
+          <View style={styles.insightCard}>
+            <Text style={styles.insightLabel}>Total Logs</Text>
+            <Text style={styles.insightValue}>{metrics.weightHistory?.length || 0} <Text style={styles.insightUnit}>Entries</Text></Text>
+          </View>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: THEME.colors.background },
+  centered: { justifyContent: 'center', alignItems: 'center' },
+  scrollContent: { padding: THEME.spacing.lg, paddingBottom: 100 },
+  loadingText: { fontFamily: THEME.typography.bold, color: THEME.colors.primary, fontSize: 18 },
+  headerSpacer: { height: 40 },
+  title: { fontFamily: THEME.typography.black, fontSize: 32, color: THEME.colors.text, marginBottom: THEME.spacing.sm },
+  segmentControl: { flexDirection: 'row', justifyContent: 'flex-start', marginBottom: THEME.spacing.xl, gap: 12 },
+  segmentBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: THEME.colors.surfaceSecondary },
+  segmentBtnActive: { backgroundColor: THEME.colors.primary },
+  segmentText: { fontFamily: THEME.typography.bold, color: THEME.colors.textSecondary, fontSize: 12 },
+  segmentTextActive: { color: THEME.colors.background },
+  
+  sectionHeader: { fontFamily: THEME.typography.black, fontSize: 20, color: THEME.colors.text, marginBottom: THEME.spacing.md },
+  pillsScroll: { paddingBottom: THEME.spacing.lg, gap: 10 },
+  pillBtn: { paddingVertical: 6, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: THEME.colors.surfaceSecondary, backgroundColor: THEME.colors.surface },
+  pillBtnActive: { backgroundColor: THEME.colors.primary, borderColor: THEME.colors.primary },
+  pillText: { fontFamily: THEME.typography.bold, color: THEME.colors.textSecondary, fontSize: 13 },
+  pillTextActive: { color: THEME.colors.background },
+  
+  chartWrapper: { alignItems: 'center', marginBottom: THEME.spacing.xxl, width: '100%' },
+  chartCaption: { fontFamily: THEME.typography.medium, color: THEME.colors.textMuted, fontSize: 11, textAlign: 'center', paddingHorizontal: 20, marginTop: THEME.spacing.sm },
+  
+  insightsTitle: { fontFamily: THEME.typography.black, fontSize: 22, color: THEME.colors.text, marginBottom: THEME.spacing.md },
+  insightsRow: { flexDirection: 'row', gap: THEME.spacing.md },
+  insightCard: { flex: 1, backgroundColor: THEME.colors.surface, padding: THEME.spacing.lg, borderRadius: THEME.roundness.lg },
+  insightLabel: { fontFamily: THEME.typography.semiBold, color: THEME.colors.primary, fontSize: 14, marginBottom: 8 },
+  insightValue: { fontFamily: THEME.typography.black, color: THEME.colors.text, fontSize: 24 },
+  insightUnit: { fontFamily: THEME.typography.semiBold, fontSize: 14, color: THEME.colors.textSecondary },
+});
