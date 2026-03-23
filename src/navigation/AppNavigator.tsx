@@ -37,7 +37,7 @@ const CustomTabBarButton = ({ children, onPress }: CustomTabBarButtonProps) => (
 );
 
 export const AppNavigator = () => {
-  const { isLogModalVisible, closeLogModal, openLogModal } = useMetrics();
+  const { isLogModalVisible, closeLogModal, openLogModal, selectedDate } = useMetrics();
 
   return (
     <>
@@ -78,7 +78,7 @@ export const AppNavigator = () => {
           options={{
             tabBarIcon: () => null,
             tabBarButton: (props) => (
-              <CustomTabBarButton {...props} onPress={openLogModal} />
+              <CustomTabBarButton {...props} onPress={() => openLogModal('calories', undefined, selectedDate)} />
             )
           }}
         />

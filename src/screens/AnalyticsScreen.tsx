@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
 import { useMetrics } from '../context/MetricsContext';
 import { ChartWidget } from '../components/organisms/ChartWidget';
 import { converters } from '../utils/converters';
 import { BODY_PARTS } from '../types/metrics';
+import { GradientText } from '../components/atoms/GradientText';
 
 export const AnalyticsScreen: React.FC = () => {
   const { metrics, isLoading } = useMetrics();
@@ -122,8 +124,12 @@ export const AnalyticsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerSpacer} />
-        <Text style={styles.title}>Progress Trends</Text>
+        <View style={styles.header}>
+          <View style={styles.titleRow}>
+            <Ionicons name="flash" size={24} color={THEME.colors.primary} />
+            <GradientText style={styles.title}>Analytics</GradientText>
+          </View>
+        </View>
 
         <View style={styles.segmentControl}>
           {['WEEK', 'MONTH', 'YEAR'].map((f) => (
@@ -137,7 +143,10 @@ export const AnalyticsScreen: React.FC = () => {
           ))}
         </View>
 
-        <Text style={styles.sectionHeader}>Health Vitals Tracking</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="trending-up" size={20} color={THEME.colors.primary} />
+          <Text style={styles.sectionTitle}>Health Vitals Tracking</Text>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
           {coreVitals.map(v => {
             const isActive = activeVital === v;
@@ -162,7 +171,10 @@ export const AnalyticsScreen: React.FC = () => {
           />
         </View>
 
-        <Text style={styles.sectionHeader}>Body Composition (Raw)</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="body" size={20} color={THEME.colors.primary} />
+          <Text style={styles.sectionTitle}>Body Composition (Raw)</Text>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
           {BODY_PARTS.map(bp => {
             const isActive = activeBodyParts.includes(bp);
@@ -187,14 +199,36 @@ export const AnalyticsScreen: React.FC = () => {
           />
         </View>
 
-        <Text style={styles.insightsTitle}>Current Baselines</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="bulb" size={20} color={THEME.colors.primary} />
+          <Text style={styles.sectionTitle}>Current Baselines</Text>
+        </View>
         <View style={styles.insightsRow}>
-          <View style={styles.insightCard}>
-            <Text style={styles.insightLabel}>Base Weight</Text>
+          <TouchableOpacity 
+            style={styles.insightCard}
+            onPress={() => setActiveVital('Weight')}
+          >
+            <View style={styles.insightHeader}>
+              <Ionicons name="scale-outline" size={14} color={THEME.colors.primary} />
+              <Text style={styles.insightLabel}>Current</Text>
+            </View>
             <Text style={styles.insightValue}>{currentWeight} <Text style={styles.insightUnit}>{metrics.preferences.weight}</Text></Text>
-          </View>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.insightCard}
+            onPress={() => setActiveVital('Weight')}
+          >
+            <View style={styles.insightHeader}>
+              <Ionicons name="flag-outline" size={14} color={THEME.colors.primary} />
+              <Text style={styles.insightLabel}>Target</Text>
+            </View>
+            <Text style={styles.insightValue}>{metrics.targetWeight || '--'} <Text style={styles.insightUnit}>{metrics.preferences.weight}</Text></Text>
+          </TouchableOpacity>
           <View style={styles.insightCard}>
-            <Text style={styles.insightLabel}>Total Logs</Text>
+            <View style={styles.insightHeader}>
+              <Ionicons name="list-outline" size={14} color={THEME.colors.primary} />
+              <Text style={styles.insightLabel}>Logs</Text>
+            </View>
             <Text style={styles.insightValue}>{metrics.weightHistory?.length || 0} <Text style={styles.insightUnit}>Entries</Text></Text>
           </View>
         </View>
@@ -209,28 +243,47 @@ const styles = StyleSheet.create({
   centered: { justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: THEME.spacing.lg, paddingBottom: 100 },
   loadingText: { fontFamily: THEME.typography.bold, color: THEME.colors.primary, fontSize: 18 },
-  headerSpacer: { height: 40 },
-  title: { fontFamily: THEME.typography.black, fontSize: 32, color: THEME.colors.text, marginBottom: THEME.spacing.sm },
+  header: {
+    marginBottom: THEME.spacing.lg,
+    marginTop: THEME.spacing.md,
+  },
+  title: { fontFamily: THEME.typography.black, fontSize: 28, color: THEME.colors.text, marginBottom: THEME.spacing.sm },
   segmentControl: { flexDirection: 'row', justifyContent: 'flex-start', marginBottom: THEME.spacing.xl, gap: 12 },
   segmentBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: THEME.colors.surfaceSecondary },
   segmentBtnActive: { backgroundColor: THEME.colors.primary },
-  segmentText: { fontFamily: THEME.typography.bold, color: THEME.colors.textSecondary, fontSize: 12 },
+  segmentText: { fontFamily: THEME.typography.bold, color: THEME.colors.textSecondary, fontSize: 11 },
   segmentTextActive: { color: THEME.colors.background },
   
-  sectionHeader: { fontFamily: THEME.typography.black, fontSize: 20, color: THEME.colors.text, marginBottom: THEME.spacing.md },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.sm,
+    marginBottom: THEME.spacing.md,
+  },
+  sectionTitle: {
+    fontFamily: THEME.typography.black,
+    fontSize: 18,
+    color: THEME.colors.text,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.sm,
+  },
   pillsScroll: { paddingBottom: THEME.spacing.lg, gap: 10 },
   pillBtn: { paddingVertical: 6, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: THEME.colors.surfaceSecondary, backgroundColor: THEME.colors.surface },
   pillBtnActive: { backgroundColor: THEME.colors.primary, borderColor: THEME.colors.primary },
-  pillText: { fontFamily: THEME.typography.bold, color: THEME.colors.textSecondary, fontSize: 13 },
+  pillText: { fontFamily: THEME.typography.bold, color: THEME.colors.textSecondary, fontSize: 12 },
   pillTextActive: { color: THEME.colors.background },
   
   chartWrapper: { alignItems: 'center', marginBottom: THEME.spacing.xxl, width: '100%' },
   chartCaption: { fontFamily: THEME.typography.medium, color: THEME.colors.textMuted, fontSize: 11, textAlign: 'center', paddingHorizontal: 20, marginTop: THEME.spacing.sm },
   
-  insightsTitle: { fontFamily: THEME.typography.black, fontSize: 22, color: THEME.colors.text, marginBottom: THEME.spacing.md },
+  insightsTitle: { fontFamily: THEME.typography.black, fontSize: 20, color: THEME.colors.text, marginBottom: THEME.spacing.md },
   insightsRow: { flexDirection: 'row', gap: THEME.spacing.md },
-  insightCard: { flex: 1, backgroundColor: THEME.colors.surface, padding: THEME.spacing.lg, borderRadius: THEME.roundness.lg },
-  insightLabel: { fontFamily: THEME.typography.semiBold, color: THEME.colors.primary, fontSize: 14, marginBottom: 8 },
-  insightValue: { fontFamily: THEME.typography.black, color: THEME.colors.text, fontSize: 24 },
-  insightUnit: { fontFamily: THEME.typography.semiBold, fontSize: 14, color: THEME.colors.textSecondary },
+  insightCard: { flex: 1, backgroundColor: THEME.colors.surface, padding: THEME.spacing.md, borderRadius: THEME.roundness.md },
+  insightHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  insightLabel: { fontFamily: THEME.typography.semiBold, color: THEME.colors.textSecondary, fontSize: 11, textTransform: 'uppercase' },
+  insightValue: { fontFamily: THEME.typography.black, color: THEME.colors.text, fontSize: 18 },
+  insightUnit: { fontFamily: THEME.typography.semiBold, fontSize: 10, color: THEME.colors.textSecondary },
 });

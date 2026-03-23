@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useMetrics } from '../../context/MetricsContext';
 import { converters } from '../../utils/converters';
@@ -8,12 +9,16 @@ interface MetricCardProps {
   label: string;
   value: string | number;
   type: 'weight' | 'height' | 'body' | 'fluid' | 'calories';
+  iconName?: string;
+  onPress?: () => void;
 }
 
 export const MetricCard: React.FC<MetricCardProps> = ({ 
   label, 
   value, 
-  type
+  type,
+  iconName,
+  onPress
 }) => {
   const { metrics } = useMetrics();
   const prefs = metrics.preferences;
@@ -51,16 +56,22 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   
   
   
+  const Container = onPress ? TouchableOpacity : View;
+
   return (
-    <View style={styles.container}>
+    <Container style={styles.container} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.headerRow}>
-        <Text style={styles.label}>{label}</Text>
+        <View style={styles.labelContainer}>
+          {iconName && <Ionicons name={iconName as any} size={14} color={THEME.colors.primary} style={{ marginRight: 6 }} />}
+          <Text style={styles.label}>{label}</Text>
+        </View>
+        {onPress && <Ionicons name="chevron-forward" size={12} color={THEME.colors.textMuted} />}
       </View>
       <View style={styles.valueRow}>
         <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>{displayValue}</Text>
         <Text style={styles.unit}>{displayUnit}</Text>
       </View>
-    </View>
+    </Container>
   );
 };
 
@@ -76,14 +87,17 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: THEME.spacing.xs,
+    marginBottom: THEME.spacing.sm,
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   label: {
     fontFamily: THEME.typography.bold,
     color: THEME.colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -94,12 +108,12 @@ const styles = StyleSheet.create({
   value: {
     fontFamily: THEME.typography.black,
     color: THEME.colors.text,
-    fontSize: 28,
+    fontSize: 24,
   },
   unit: {
     fontFamily: THEME.typography.semiBold,
     color: THEME.colors.textMuted,
-    fontSize: 14,
+    fontSize: 12,
     marginLeft: 2,
   },
   trendBadge: {

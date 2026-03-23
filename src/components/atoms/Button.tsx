@@ -103,8 +103,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   textBase: {
+    fontFamily: THEME.typography.bold,
     color: '#fff',
-    fontWeight: '700',
     fontSize: 16,
   },
   text_sm: { fontSize: 14 },

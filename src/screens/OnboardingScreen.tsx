@@ -7,6 +7,7 @@ import { THEME } from '../constants/theme';
 import { Button } from '../components/atoms/Button';
 import { VerticalWheelPicker } from '../components/atoms/VerticalWheelPicker';
 import { useMetrics } from '../context/MetricsContext';
+import { GradientText } from '../components/atoms/GradientText';
 
 export const OnboardingScreen: React.FC = () => {
   const { completeOnboarding, addWeightLog } = useMetrics();
@@ -121,28 +122,43 @@ export const OnboardingScreen: React.FC = () => {
           {step === 1 && (
             <View style={styles.stepContainer}>
               <View style={styles.iconHero}>
-                <Ionicons name="body" size={64} color={THEME.colors.primary} />
+                <Ionicons name="body" size={40} color={THEME.colors.primary} />
               </View>
-              <Text style={styles.title}>Welcome to Anabolic</Text>
-              <Text style={styles.subtitle}>Let's calibrate your starting point.</Text>
+              <GradientText style={styles.title}>Welcome</GradientText>
+              <Text style={styles.subtitle}>Let's calibrate your profile.</Text>
               
-              <Text style={styles.label}>Age</Text>
-              <VerticalWheelPicker
-                items={Array.from({length: 80 - 14 + 1}, (_, i) => (i + 14).toString())}
-                value={age}
-                onValueChange={setAge}
-              />
+              <View style={styles.compactInputGroup}>
+                <Text style={styles.compactLabel}>Biological Sex</Text>
+                <View style={styles.genderToggle}>
+                  <TouchableOpacity 
+                    style={[styles.genderToggleBtn, gender === 'male' && styles.genderToggleBtnActive]} 
+                    onPress={() => setGender('male')}
+                  >
+                    <Ionicons name="male" size={18} color={gender === 'male' ? THEME.colors.background : THEME.colors.textMuted} />
+                    <Text style={[styles.genderToggleText, gender === 'male' && styles.genderToggleTextActive]}>Male</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.genderToggleBtn, gender === 'female' && styles.genderToggleBtnActive]} 
+                    onPress={() => setGender('female')}
+                  >
+                    <Ionicons name="female" size={18} color={gender === 'female' ? THEME.colors.background : THEME.colors.textMuted} />
+                    <Text style={[styles.genderToggleText, gender === 'female' && styles.genderToggleTextActive]}>Female</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-              <Text style={styles.label}>Biological Sex</Text>
-              <View style={styles.genderRow}>
-                <TouchableOpacity style={[styles.genderCard, gender === 'male' && styles.genderCardActive]} onPress={() => setGender('male')}>
-                  <Ionicons name="male" size={28} color={gender === 'male' ? THEME.colors.background : THEME.colors.primary} />
-                  <Text style={[styles.genderText, gender === 'male' && styles.genderTextActive]}>Male</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.genderCard, gender === 'female' && styles.genderCardActive]} onPress={() => setGender('female')}>
-                  <Ionicons name="female" size={28} color={gender === 'female' ? THEME.colors.background : THEME.colors.primary} />
-                  <Text style={[styles.genderText, gender === 'female' && styles.genderTextActive]}>Female</Text>
-                </TouchableOpacity>
+              <View style={{ height: THEME.spacing.xl }} />
+
+              <View style={styles.compactInputGroup}>
+                <Text style={styles.compactLabel}>Age</Text>
+                <View style={styles.pickerWrapper}>
+                  <VerticalWheelPicker
+                    items={Array.from({length: 80 - 14 + 1}, (_, i) => (i + 14).toString())}
+                    value={age}
+                    onValueChange={setAge}
+                    width={100}
+                  />
+                </View>
               </View>
             </View>
           )}
@@ -152,7 +168,7 @@ export const OnboardingScreen: React.FC = () => {
               <View style={styles.iconHero}>
                 <Ionicons name="scale" size={64} color={THEME.colors.primary} />
               </View>
-              <Text style={styles.title}>Your Body</Text>
+              <GradientText style={styles.title}>Your Body</GradientText>
               <Text style={styles.subtitle}>Crucial metrics to compute your core BMR.</Text>
               
               <View style={styles.inputGroup}>
@@ -202,7 +218,7 @@ export const OnboardingScreen: React.FC = () => {
               <View style={styles.iconHero}>
                 <Ionicons name="compass" size={64} color={THEME.colors.primary} />
               </View>
-              <Text style={styles.title}>Your Goal</Text>
+              <GradientText style={styles.title}>Your Goal</GradientText>
               <Text style={styles.subtitle}>What physical adaptation are we striving for?</Text>
               
               {goal !== 'maintain' && (
@@ -253,7 +269,7 @@ export const OnboardingScreen: React.FC = () => {
                <View style={styles.iconHero}>
                 <Ionicons name="analytics" size={64} color={THEME.colors.primary} />
               </View>
-              <Text style={styles.title}>The Protocol</Text>
+              <GradientText style={styles.title}>The Protocol</GradientText>
               <Text style={styles.subtitle}>Based on your TDEE (~{tdee} kcal), here is your bespoke algorithm. You can manually tweak these anytime.</Text>
               
               <View style={styles.macroCard}>
@@ -312,10 +328,10 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: THEME.colors.primary },
   
   scroll: { padding: THEME.spacing.xl, paddingBottom: 60 },
-  stepContainer: { flex: 1, paddingTop: THEME.spacing.md },
-  iconHero: { width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(52, 211, 153, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: THEME.spacing.xl, alignSelf: 'center' },
-  title: { fontFamily: THEME.typography.black, color: THEME.colors.text, fontSize: 36, textAlign: 'center', marginBottom: THEME.spacing.sm },
-  subtitle: { fontFamily: THEME.typography.medium, color: THEME.colors.textSecondary, fontSize: 16, textAlign: 'center', marginBottom: THEME.spacing.xxl, lineHeight: 24, paddingHorizontal: THEME.spacing.md },
+  stepContainer: { flex: 1, paddingTop: THEME.spacing.sm, alignItems: 'center' },
+  iconHero: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(52, 211, 153, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: THEME.spacing.lg, alignSelf: 'center' },
+  title: { fontFamily: THEME.typography.black, color: THEME.colors.text, fontSize: 28, textAlign: 'center', marginBottom: 4 },
+  subtitle: { fontFamily: THEME.typography.medium, color: THEME.colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: THEME.spacing.xl, lineHeight: 20, paddingHorizontal: THEME.spacing.md },
   
   inputGroup: { marginBottom: THEME.spacing.xl, alignItems: 'center', width: '100%' },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: THEME.spacing.sm },
@@ -332,7 +348,7 @@ const styles = StyleSheet.create({
   heroInput: { 
     fontFamily: THEME.typography.black, 
     color: THEME.colors.primary, 
-    fontSize: 56, 
+    fontSize: 48, 
     borderBottomWidth: 3, 
     borderBottomColor: THEME.colors.surfaceSecondary, 
     textAlign: 'center',
@@ -350,7 +366,7 @@ const styles = StyleSheet.create({
   megaInput: { 
     fontFamily: THEME.typography.black, 
     color: THEME.colors.primary, 
-    fontSize: 64, 
+    fontSize: 54, 
     textAlign: 'center',
     marginBottom: THEME.spacing.md,
   },
@@ -358,7 +374,7 @@ const styles = StyleSheet.create({
   genderRow: { flexDirection: 'row', gap: 12 },
   genderCard: { flex: 1, backgroundColor: THEME.colors.surface, padding: THEME.spacing.lg, borderRadius: THEME.roundness.md, alignItems: 'center', borderWidth: 2, borderColor: 'transparent', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   genderCardActive: { backgroundColor: THEME.colors.primary, borderColor: THEME.colors.primary, transform: [{ scale: 1.02 }] },
-  genderText: { fontFamily: THEME.typography.black, color: THEME.colors.textSecondary, fontSize: 18 },
+  genderText: { fontFamily: THEME.typography.black, color: THEME.colors.textSecondary, fontSize: 16 },
   genderTextActive: { color: THEME.colors.background },
   
   goalCard: { backgroundColor: THEME.colors.surface, padding: THEME.spacing.lg, borderRadius: THEME.roundness.lg, flexDirection: 'row', alignItems: 'center', marginBottom: THEME.spacing.md, borderWidth: 2, borderColor: 'transparent' },
@@ -366,13 +382,22 @@ const styles = StyleSheet.create({
   goalIconBox: { width: 64, height: 64, borderRadius: 32, backgroundColor: THEME.colors.surfaceSecondary, justifyContent: 'center', alignItems: 'center', marginRight: THEME.spacing.lg },
   goalIconBoxActive: { backgroundColor: THEME.colors.primary },
   goalTextCol: { flex: 1 },
-  goalTitle: { fontFamily: THEME.typography.black, color: THEME.colors.text, fontSize: 22, marginBottom: 4 },
+  goalTitle: { fontFamily: THEME.typography.black, color: THEME.colors.text, fontSize: 18, marginBottom: 4 },
   goalTitleActive: { color: THEME.colors.primary },
-  goalDesc: { fontFamily: THEME.typography.medium, color: THEME.colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  goalDesc: { fontFamily: THEME.typography.medium, color: THEME.colors.textSecondary, fontSize: 12, lineHeight: 18 },
   
   macroCard: { backgroundColor: THEME.colors.surface, borderRadius: THEME.roundness.xl, padding: THEME.spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   macroRow: { flexDirection: 'row', gap: 16, marginTop: THEME.spacing.xxl, width: '100%' },
   macroCol: { flex: 1, alignItems: 'center' },
   
   footer: { paddingHorizontal: THEME.spacing.xl, paddingBottom: Platform.OS === 'ios' ? 40 : THEME.spacing.xxl, paddingTop: THEME.spacing.md },
+
+  compactInputGroup: { width: '100%', alignItems: 'center', marginBottom: THEME.spacing.xl },
+  compactLabel: { fontFamily: THEME.typography.bold, color: THEME.colors.textMuted, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, marginBottom: THEME.spacing.md },
+  genderToggle: { flexDirection: 'row', backgroundColor: THEME.colors.surfaceSecondary, borderRadius: 16, padding: 4, width: '100%', maxWidth: 300 },
+  genderToggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 12 },
+  genderToggleBtnActive: { backgroundColor: THEME.colors.primary, shadowColor: THEME.colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  genderToggleText: { fontFamily: THEME.typography.bold, color: THEME.colors.textMuted, fontSize: 14 },
+  genderToggleTextActive: { color: THEME.colors.background },
+  pickerWrapper: { height: 160, justifyContent: 'center', paddingTop: 10 },
 });

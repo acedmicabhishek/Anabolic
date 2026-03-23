@@ -5,6 +5,10 @@ import { CalorieTracker } from '../components/molecules/CalorieTracker';
 import { useMetrics } from '../context/MetricsContext';
 import { Ionicons } from '@expo/vector-icons';
 import { BarcodeScannerOverlay } from '../components/organisms/BarcodeScannerOverlay';
+import { GradientText } from '../components/atoms/GradientText';
+import { FancyDatePicker } from '../components/molecules/FancyDatePicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { Platform } from 'react-native';
 
 const MEALS = [
   { name: 'Breakfast', icon: 'sunny' },
@@ -14,54 +18,110 @@ const MEALS = [
 ] as const;
 
 export const DietScreen: React.FC = () => {
-  const { metrics, openLogModal } = useMetrics();
+  const { metrics, openLogModal, selectedDate, setSelectedDate } = useMetrics();
   const [isScannerVisible, setScannerVisible] = useState(false);
   const [scannerMeal, setScannerMeal] = useState('Snacks');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const onDateChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDateValue) {
+      setSelectedDate(selectedDateValue);
+    }
+  };
 
   const openScanner = (mealName: string) => {
     setScannerMeal(mealName);
     setScannerVisible(true);
   };
 
-  const isToday = (dateString: string) => {
-    const d = new Date(dateString);
-    const now = new Date();
-    return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  const isSameDay = (date1: string | Date, date2: string | Date) => {
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    return d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
   };
 
   const getCaloriesForMeal = (mealName: string) => {
     return (metrics.meals || [])
-      .filter((m) => m.name === mealName && isToday(m.date))
+      .filter((m) => m.name === mealName && isSameDay(m.date, selectedDate))
       .reduce((sum, m) => sum + m.calories, 0);
   };
+
+  const caloriesForDay = (metrics.meals || [])
+    .filter(m => isSameDay(m.date, selectedDate))
+    .reduce((sum, m) => sum + m.calories, 0);
+
+  const waterForDay = (metrics.waterHistory || [])
+    .filter(w => isSameDay(w.date, selectedDate))
+    .reduce((sum, w) => sum + w.value, 0);
+
+  const isSelectedToday = isSameDay(selectedDate, new Date());
+  
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* <View style={styles.header}>
-          <Text style={styles.title}>Diet</Text>
-          <Text style={styles.subtitle}>Fuel your potential</Text>
-        </View> */}
+        <View style={styles.header}>
+          <View style={styles.titleRow}>
+            <Ionicons name="flash" size={24} color={THEME.colors.primary} />
+            <GradientText style={styles.title}>Diet</GradientText>
+            <TouchableOpacity 
+              style={styles.dateIndicator} 
+              onPress={() => setSelectedDate(new Date())}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.dateIndicatorText}>
+                {isSelectedToday ? 'Today' : 
+                 isSameDay(selectedDate, new Date(Date.now() - 86400000)) ? 'Yesterday' :
+                 selectedDate.toLocaleDateString([], { day: 'numeric', month: 'short' })}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <FancyDatePicker 
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+            onOpenCalendar={() => setShowDatePicker(true)}
+          />
+          {showDatePicker && (
+            <DateTimePicker
+              value={selectedDate}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+              maximumDate={new Date()}
+            />
+          )}
+        </View>
 
-        <CalorieTracker onCenterPress={() => openScanner('Snacks')} />
+        <CalorieTracker 
+          date={selectedDate}
+          current={caloriesForDay}
+          goal={metrics.calorieGoal}
+          waterCurrent={waterForDay}
+          waterGoal={metrics.waterGoal}
+          onCenterPress={() => openScanner('Snacks')} 
+        />
 
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => openLogModal('calories')}
+            onPress={() => openLogModal('calories', undefined, selectedDate)}
           >
             <Ionicons name="fast-food" size={24} color={THEME.colors.primary} />
             <Text style={styles.actionButtonText}>Quick Add</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => openLogModal('water')}
+            onPress={() => openLogModal('water', undefined, selectedDate)}
           >
             <Ionicons name="water" size={24} color="#3B82F6" />
             <Text style={styles.actionButtonText}>Log Water</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Today's Meals</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="nutrition" size={20} color={THEME.colors.primary} />
+          <Text style={styles.sectionTitle}>Today's Meals</Text>
+        </View>
         <View style={styles.mealsContainer}>
           {MEALS.map((meal) => (
             <View key={meal.name} style={styles.mealCard}>
@@ -76,7 +136,7 @@ export const DietScreen: React.FC = () => {
                 <TouchableOpacity style={styles.mealScanBtn} onPress={() => openScanner(meal.name)}>
                   <Ionicons name="barcode-outline" size={20} color={THEME.colors.primary} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.mealAddBtn} onPress={() => openLogModal('calories', meal.name)}>
+                <TouchableOpacity style={styles.mealAddBtn} onPress={() => openLogModal('calories', meal.name, selectedDate)}>
                   <Ionicons name="add" size={24} color={THEME.colors.background} />
                 </TouchableOpacity>
               </View>
@@ -85,10 +145,10 @@ export const DietScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      <BarcodeScannerOverlay 
-        visible={isScannerVisible} 
-        onClose={() => setScannerVisible(false)} 
-        targetMeal={scannerMeal} 
+      <BarcodeScannerOverlay
+        visible={isScannerVisible}
+        onClose={() => setScannerVisible(false)}
+        targetMeal={scannerMeal}
       />
     </SafeAreaView>
   );
@@ -101,28 +161,80 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: THEME.spacing.lg,
-    paddingTop: 60, 
+    paddingTop: 50,
   },
   header: {
-    marginBottom: THEME.spacing.xl,
+    marginBottom: THEME.spacing.md,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: THEME.spacing.xs,
+  },
+  dateNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.surface,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  navBtn: {
+    padding: 2,
+  },
+  navDateText: {
+    fontFamily: THEME.typography.bold,
+    color: THEME.colors.text,
+    fontSize: 14,
+    minWidth: 60,
+    textAlign: 'center',
   },
   title: {
-    fontSize: 32,
-    fontWeight: '900',
+    fontSize: 28,
+    fontFamily: THEME.typography.black,
     color: THEME.colors.text,
     letterSpacing: -0.5,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.sm,
+    marginBottom: THEME.spacing.sm,
+  },
+  dateIndicator: {
+    backgroundColor: 'rgba(141, 224, 166, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(141, 224, 166, 0.2)',
+  },
+  dateIndicatorText: {
+    fontFamily: THEME.typography.bold,
+    fontSize: 12,
+    color: THEME.colors.primary,
+    textTransform: 'uppercase',
   },
   subtitle: {
     fontSize: 16,
     color: THEME.colors.textSecondary,
     marginTop: 4,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.sm,
+    marginBottom: THEME.spacing.md,
+  },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 18,
+    fontFamily: THEME.typography.black,
     color: THEME.colors.text,
     letterSpacing: 1,
-    marginBottom: THEME.spacing.md,
   },
   mealsContainer: {
     gap: THEME.spacing.md,

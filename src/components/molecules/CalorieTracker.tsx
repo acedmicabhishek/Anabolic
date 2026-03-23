@@ -8,21 +8,28 @@ import { converters } from '../../utils/converters';
 
 interface CalorieTrackerProps {
   onCenterPress?: () => void;
+  current?: number;
+  goal?: number;
+  waterCurrent?: number;
+  waterGoal?: number;
+  date?: Date;
 }
 
-export const CalorieTracker: React.FC<CalorieTrackerProps> = ({ onCenterPress }) => {
+export const CalorieTracker: React.FC<CalorieTrackerProps> = ({ 
+  onCenterPress,
+  current = 0,
+  goal = 2500,
+  waterCurrent = 0,
+  waterGoal = 2500,
+  date = new Date()
+}) => {
   const { metrics } = useMetrics();
   
-  const current = metrics.calories || 0;
-  const goal = metrics.calorieGoal || 2500;
   const percentage = (current / goal) * 100;
   const remaining = Math.max(goal - current, 0);
 
-  const waterCurrent = metrics.currentWater || 0;
-  const waterGoal = metrics.waterGoal || 2500;
   const waterPercentage = (waterCurrent / waterGoal) * 100;
   const fluidUnit = metrics.preferences.fluid;
-  
   
   const size = Dimensions.get('window').width - THEME.spacing.xl * 2; 
   const strokeWidth = 14;
@@ -36,11 +43,6 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = ({ onCenterPress })
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Today</Text>
-        <Text style={styles.subtitle}>{new Date().toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-      </View>
-
       <View style={styles.svgContainerWrapper}>
         <View style={styles.svgContainer}>
           <Svg width={size} height={size}>
@@ -114,28 +116,29 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = ({ onCenterPress })
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: THEME.spacing.md,
+    paddingBottom: THEME.spacing.md,
+    paddingTop: 0,
   },
   header: {
-    marginBottom: THEME.spacing.xl,
+    marginBottom: THEME.spacing.xs,
     paddingHorizontal: THEME.spacing.sm,
   },
   title: {
     color: THEME.colors.text,
-    fontSize: 28,
-    fontWeight: '900',
+    fontSize: 24,
+    fontFamily: THEME.typography.black,
     letterSpacing: -0.5,
   },
   subtitle: {
     color: THEME.colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontFamily: THEME.typography.semiBold,
     marginTop: 2,
   },
   svgContainerWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: THEME.spacing.xxl,
+    marginBottom: THEME.spacing.lg,
   },
   svgContainer: {
     position: 'relative',
@@ -164,8 +167,8 @@ const styles = StyleSheet.create({
   },
   svgLogText: {
     color: THEME.colors.textSecondary,
-    fontSize: 18,
-    fontWeight: '500',
+    fontSize: 16,
+    fontFamily: THEME.typography.medium,
     marginTop: 8,
   },
   statsContainer: {
@@ -177,13 +180,13 @@ const styles = StyleSheet.create({
   },
   statsText: {
     color: THEME.colors.text,
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 18,
+    fontFamily: THEME.typography.black,
   },
   statsTextMuted: {
     color: THEME.colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontFamily: THEME.typography.semiBold,
   },
   progressBackground: {
     height: 8,

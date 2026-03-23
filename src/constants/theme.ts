@@ -29,10 +29,10 @@ export const THEME = {
     full: 9999,
   },
   typography: {
-    regular: 'Inter_400Regular',
-    medium: 'Inter_500Medium',
-    semiBold: 'Inter_600SemiBold',
-    bold: 'Inter_700Bold',
-    black: 'Inter_900Black',
+    regular: 'FiraCode_400Regular',
+    medium: 'FiraCode_500Medium',
+    semiBold: 'FiraCode_600SemiBold',
+    bold: 'FiraCode_700Bold',
+    black: 'FiraCode_700Bold',
   }
 };

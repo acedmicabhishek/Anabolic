@@ -33,7 +33,7 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
   visible,
   onClose,
 }) => {
-  const { metrics, logType, logSubType, addWeightLog, addBodyMeasurement, updateHeight, updateCalories, updateWater, addMealEntry } = useMetrics();
+  const { metrics, logType, logSubType, logDate, addWeightLog, addBodyMeasurement, updateHeight, updateCalories, updateWater, addMealEntry } = useMetrics();
   const [type, setType] = useState<'weight' | 'body' | 'height' | 'calories' | 'water'>(logType);
   const [value, setValue] = useState('');
   const [feetValue, setFeetValue] = useState('');
@@ -41,6 +41,14 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
   const [selectedPart, setSelectedPart] = useState<BodyPart>('Biceps');
   const [currentUnit, setCurrentUnit] = useState<string>('');
   const [date, setDate] = useState(new Date());
+
+  React.useEffect(() => {
+    if (visible && logDate) {
+      setDate(logDate);
+    } else if (visible) {
+      setDate(new Date());
+    }
+  }, [visible, logDate]);
 
   const CATEGORIES = [
     { label: 'Calories', value: 'calories' },
@@ -155,12 +163,12 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
         await updateHeight(numericValue);
       } else if (type === 'calories') {
         if (logSubType) {
-          await addMealEntry(logSubType, numericValue);
+          await addMealEntry(logSubType, numericValue, date.toISOString());
         } else {
-          await updateCalories((metrics.calories || 0) + numericValue);
+          await addMealEntry('Quick Add', numericValue, date.toISOString());
         }
       } else if (type === 'water') {
-        await updateWater((metrics.currentWater || 0) + numericValue);
+        await updateWater((metrics.currentWater || 0) + numericValue, date.toISOString());
       } else {
         await addBodyMeasurement(selectedPart, numericValue, 'cm', date.toISOString());
       }

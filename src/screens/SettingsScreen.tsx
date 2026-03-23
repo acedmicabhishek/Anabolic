@@ -6,9 +6,10 @@ import { THEME } from '../constants/theme';
 import { Button } from '../components/atoms/Button';
 import { storage } from '../services/storage';
 import { useMetrics } from '../context/MetricsContext';
+import { GradientText } from '../components/atoms/GradientText';
 
 export const SettingsScreen: React.FC = () => {
-  const { metrics, isLoading, simulateData, setCalorieGoal, updateWater, updateMacros, updatePreferences, updateAge, updateGender } = useMetrics();
+  const { metrics, isLoading, simulateData, setCalorieGoal, setWaterGoal, setTargetWeight, updateWater, updateMacros, updatePreferences, updateAge, updateGender } = useMetrics();
 
   const currentPrefs = metrics.preferences || { weight: 'kg', height: 'cm', body: 'cm', fluid: 'ml' };
 
@@ -52,6 +53,7 @@ export const SettingsScreen: React.FC = () => {
   const [protein, setProtein] = useState((metrics.macroTargets?.protein || 150).toString());
   const [carbs, setCarbs] = useState((metrics.macroTargets?.carbs || 250).toString());
   const [fat, setFat] = useState((metrics.macroTargets?.fat || 70).toString());
+  const [targetWeightValue, setTargetWeightValue] = useState((metrics.targetWeight || '').toString());
 
   const [statusModal, setStatusModal] = useState<{ visible: boolean, title: string, message: string, type: 'success' | 'error' }>({
     visible: false,
@@ -66,7 +68,8 @@ export const SettingsScreen: React.FC = () => {
 
   const handleSaveTargets = async () => {
     await setCalorieGoal(Number(calGoal) || 2000);
-    await updateWater(metrics.currentWater, Number(waterGoal) || 2000);
+    await setWaterGoal(Number(waterGoal) || 2000);
+    await setTargetWeight(Number(targetWeightValue) || 0);
     await updateMacros({
       protein: Number(protein) || 150,
       carbs: Number(carbs) || 250,
@@ -100,12 +103,18 @@ export const SettingsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.title}>Settings</Text>
+          <View style={styles.titleRow}>
+            <Ionicons name="flash" size={24} color={THEME.colors.primary} />
+            <GradientText style={styles.title}>Settings</GradientText>
+          </View>
           <Text style={styles.subtitle}>Configure your experience</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Measurement Units</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="options" size={20} color={THEME.colors.primary} />
+            <Text style={styles.sectionTitle}>Measurement Units</Text>
+          </View>
           <View style={styles.card}>
             <View style={styles.preferenceRow}>
               <Text style={styles.preferenceLabel}>Weight</Text>
@@ -170,7 +179,10 @@ export const SettingsScreen: React.FC = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Nutrition Targets</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="restaurant" size={20} color={THEME.colors.primary} />
+            <Text style={styles.sectionTitle}>Nutrition Targets</Text>
+          </View>
           <View style={styles.card}>
             <View style={styles.inputRow}>
               <Text style={styles.inputLabel}>Calories (kcal)</Text>
@@ -192,12 +204,19 @@ export const SettingsScreen: React.FC = () => {
               <Text style={styles.inputLabel}>Water (ml)</Text>
               <TextInput style={styles.input} keyboardType="numeric" value={waterGoal} onChangeText={setWGoal} />
             </View>
+            <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>Target Weight ({metrics.preferences.weight})</Text>
+              <TextInput style={styles.input} keyboardType="numeric" value={targetWeightValue} onChangeText={setTargetWeightValue} />
+            </View>
             <Button title="Save Targets" onPress={handleSaveTargets} disabled={isLoading} />
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App Info</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="information-circle" size={20} color={THEME.colors.primary} />
+            <Text style={styles.sectionTitle}>App Info</Text>
+          </View>
           <View style={styles.card}>
             <Text style={styles.infoText}>Anabolic v1.0</Text>
             <Button 
@@ -210,6 +229,8 @@ export const SettingsScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Developer Options Hidden */}
+        {/*
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Developer Options</Text>
           <View style={[styles.card, styles.devCard]}>
@@ -225,9 +246,13 @@ export const SettingsScreen: React.FC = () => {
             />
           </View>
         </View>
+        */}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Danger Zone</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="warning" size={20} color="#EF4444" />
+            <Text style={[styles.sectionTitle, { color: '#EF4444' }]}>Danger Zone</Text>
+          </View>
           <View style={[styles.card, styles.dangerCard]}>
             <Text style={styles.cardText}>Delete all local tracking data and user preferences. This action cannot be undone.</Text>
             <Button
@@ -321,7 +346,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: THEME.typography.black,
-    fontSize: 36,
+    fontSize: 28,
     color: THEME.colors.text,
     textTransform: 'uppercase',
     letterSpacing: 2,
@@ -334,12 +359,22 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: THEME.spacing.xl,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.sm,
+    marginBottom: THEME.spacing.md,
+  },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 18,
+    fontFamily: THEME.typography.black,
     color: THEME.colors.text,
     letterSpacing: 1,
-    marginBottom: THEME.spacing.md,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.sm,
   },
   card: {
     backgroundColor: THEME.colors.surface,

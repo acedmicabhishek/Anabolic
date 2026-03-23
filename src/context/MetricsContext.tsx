@@ -9,7 +9,9 @@ interface MetricsContextType {
   addBodyMeasurement: (part: string, value: number, unit?: string, date?: string) => Promise<void>;
   updateCalories: (calories: number) => Promise<void>;
   setCalorieGoal: (goal: number) => Promise<void>;
-  updateWater: (current: number, goal?: number) => Promise<void>;
+  setTargetWeight: (weight: number) => Promise<void>;
+  setWaterGoal: (goal: number) => Promise<void>;
+  updateWater: (current: number, date?: string) => Promise<void>;
   updateMacros: (macros: { protein: number; carbs: number; fat: number }) => Promise<void>;
   updatePreferences: (prefs: Partial<UnitPreferences>) => Promise<void>;
   updateAge: (age: number) => Promise<void>;
@@ -24,7 +26,10 @@ interface MetricsContextType {
   isLogModalVisible: boolean;
   logType: LogType;
   logSubType?: string;
-  openLogModal: (type?: LogType, subType?: string) => void;
+  logDate?: Date;
+  selectedDate: Date;
+  setSelectedDate: (date: Date) => void;
+  openLogModal: (type?: LogType, subType?: string, date?: Date) => void;
   closeLogModal: () => void;
   deleteProgressPhoto: (id: string) => Promise<void>;
 }
@@ -66,6 +71,8 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLogModalVisible, setIsLogModalVisible] = useState(false);
   const [logType, setLogType] = useState<LogType>('weight');
   const [logSubType, setLogSubType] = useState<string | undefined>();
+  const [logDate, setLogDate] = useState<Date | undefined>();
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   
   useEffect(() => {
@@ -157,29 +164,39 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setMetrics((prev) => ({ ...prev, calorieGoal: goal }));
   };
 
-  const updateWater = async (current: number, goal?: number) => {
-    const today = new Date().toISOString().split('T')[0];
+  const setWaterGoal = async (goal: number) => {
+    setMetrics((prev) => ({ ...prev, waterGoal: goal }));
+  };
+
+  const setTargetWeight = async (weight: number) => {
+    setMetrics((prev) => ({ ...prev, targetWeight: weight }));
+  };
+
+  const updateWater = async (current: number, date?: string) => {
+    const targetDate = date ? new Date(date) : new Date();
+    const dateKey = targetDate.toISOString().split('T')[0];
+    const isToday = dateKey === new Date().toISOString().split('T')[0];
+
     setMetrics((prev) => {
       const existingHistory = [...(prev.waterHistory || [])];
-      const todayIndex = existingHistory.findIndex(log => log.date.startsWith(today));
+      const targetIndex = existingHistory.findIndex(log => log.date.startsWith(dateKey));
       
       const newLog = {
-        id: todayIndex >= 0 ? existingHistory[todayIndex].id : Math.random().toString(36).substring(7),
+        id: targetIndex >= 0 ? existingHistory[targetIndex].id : Math.random().toString(36).substring(7),
         value: current,
         unit: 'ml',
-        date: todayIndex >= 0 ? existingHistory[todayIndex].date : new Date().toISOString()
+        date: targetIndex >= 0 ? existingHistory[targetIndex].date : targetDate.toISOString()
       };
 
-      if (todayIndex >= 0) {
-        existingHistory[todayIndex] = newLog;
+      if (targetIndex >= 0) {
+        existingHistory[targetIndex] = newLog;
       } else {
         existingHistory.unshift(newLog);
       }
 
       return { 
         ...prev, 
-        currentWater: current,
-        ...(goal !== undefined && { waterGoal: goal }),
+        ...(isToday && { currentWater: current }),
         waterHistory: existingHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       };
     });
@@ -224,6 +241,9 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addMealEntry = async (name: string, calories: number, date?: string, foodName?: string, macros?: { protein: number, carbs: number, fat: number }) => {
+    const targetDate = date ? new Date(date) : new Date();
+    const isToday = targetDate.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
+
     const newMeal: MealLog = {
       id: Math.random().toString(36).substring(7),
       name,
@@ -234,7 +254,7 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
     setMetrics((prev) => ({
       ...prev,
-      calories: (prev.calories || 0) + calories,
+      ...(isToday && { calories: (prev.calories || 0) + calories }),
       meals: [newMeal, ...(prev.meals || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     }));
   };
@@ -318,7 +338,7 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
-  const openLogModal = (type?: LogType, subType?: string) => {
+  const openLogModal = (type?: LogType, subType?: string, date?: Date) => {
     const validTypes: LogType[] = ['weight', 'body', 'height', 'calories', 'water'];
     if (type && validTypes.includes(type)) {
       setLogType(type);
@@ -327,6 +347,7 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLogType('weight');
       setLogSubType(undefined);
     }
+    setLogDate(date);
     setIsLogModalVisible(true);
   };
   const closeLogModal = () => {
@@ -356,6 +377,8 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addBodyMeasurement,
         updateCalories,
         setCalorieGoal,
+        setTargetWeight,
+        setWaterGoal,
         updateWater,
         updateMacros,
         updatePreferences,
@@ -371,6 +394,9 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isLogModalVisible,
         logType,
         logSubType,
+        logDate,
+        selectedDate,
+        setSelectedDate,
         openLogModal,
         closeLogModal,
         deleteProgressPhoto,
