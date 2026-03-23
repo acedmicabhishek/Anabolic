@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Alert, TextInput, Animated, Easing, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { THEME } from '../../constants/theme';
 import { useMetrics } from '../../context/MetricsContext';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SCAN_AREA_SIZE = 280;
 
 interface BarcodeScannerOverlayProps {
   visible: boolean;
@@ -18,20 +22,66 @@ export const BarcodeScannerOverlay: React.FC<BarcodeScannerOverlayProps> = ({ vi
   const [scannerStatus, setScannerStatus] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const { addMealEntry } = useMetrics();
 
-
-  const [foodData, setFoodData] = useState<{ name: string, calories: number, macros: { protein: number, carbs: number, fat: number } } | null>(null);
+  const [foodData, setFoodData] = useState<{ 
+    name: string, 
+    caloriesPer100: number, 
+    macrosPer100: { protein: number, carbs: number, fat: number },
+    brand?: string
+  } | null>(null);
+  
+  const [consumedAmount, setConsumedAmount] = useState<string>('100');
+  
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
+  const cardSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   useEffect(() => {
     if (visible) {
       setScanned(false);
       setFoodData(null);
       setLoading(false);
+      setConsumedAmount('100');
+      startScanAnimation();
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (foodData) {
+      Animated.spring(cardSlideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 8
+      }).start();
+    } else {
+      cardSlideAnim.setValue(SCREEN_HEIGHT);
+    }
+  }, [foodData]);
+
+  const startScanAnimation = () => {
+    scanLineAnim.setValue(0);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanLineAnim, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scanLineAnim, {
+          toValue: 0,
+          duration: 2000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+  };
 
   if (!permission) return <View />;
 
   const handleBarcodeScanned = async ({ type, data }: { type: string; data: string }) => {
+    if (scanned || loading) return;
+    
     setScanned(true);
     setLoading(true);
     try {
@@ -43,6 +93,7 @@ export const BarcodeScannerOverlay: React.FC<BarcodeScannerOverlayProps> = ({ vi
         const nutriments = prod.nutriments || {};
 
         const name = prod.product_name || 'Unknown Food';
+        const brand = prod.brands || '';
         const kcal = nutriments['energy-kcal_100g'] || 0;
         const protein = nutriments['proteins_100g'] || 0;
         const carbs = nutriments['carbohydrates_100g'] || 0;
@@ -50,22 +101,27 @@ export const BarcodeScannerOverlay: React.FC<BarcodeScannerOverlayProps> = ({ vi
 
         setFoodData({
           name,
-          calories: Math.round(kcal),
-          macros: {
-            protein: Math.round(protein),
-            carbs: Math.round(carbs),
-            fat: Math.round(fat)
+          brand,
+          caloriesPer100: kcal,
+          macrosPer100: {
+            protein,
+            carbs,
+            fat
           }
         });
       } else {
         setScannerStatus({ message: 'Barcode Not Found', type: 'error' });
-        setTimeout(() => setScannerStatus(null), 3000);
-        setScanned(false);
+        setTimeout(() => {
+            setScannerStatus(null);
+            setScanned(false);
+        }, 2000);
       }
     } catch (e) {
       setScannerStatus({ message: 'Network Error', type: 'error' });
-      setTimeout(() => setScannerStatus(null), 3000);
-      setScanned(false);
+      setTimeout(() => {
+        setScannerStatus(null);
+        setScanned(false);
+      }, 2000);
     } finally {
       setLoading(false);
     }
@@ -73,8 +129,23 @@ export const BarcodeScannerOverlay: React.FC<BarcodeScannerOverlayProps> = ({ vi
 
   const confirmAndSave = async () => {
     if (foodData) {
-      await addMealEntry(targetMeal, foodData.calories, undefined, foodData.name, foodData.macros);
-      setScannerStatus({ message: 'Food Logged!', type: 'success' });
+      const amount = parseFloat(consumedAmount) || 0;
+      if (amount <= 0) {
+        Alert.alert('Invalid Amount', 'Please enter a valid weight in grams.');
+        return;
+      }
+
+      const ratio = amount / 100;
+      const scaledCalories = Math.round(foodData.caloriesPer100 * ratio);
+      const scaledMacros = {
+        protein: Math.round(foodData.macrosPer100.protein * ratio),
+        carbs: Math.round(foodData.macrosPer100.carbs * ratio),
+        fat: Math.round(foodData.macrosPer100.fat * ratio),
+      };
+
+      await addMealEntry(targetMeal, scaledCalories, undefined, foodData.name, scaledMacros);
+      setScannerStatus({ message: 'Logged successfully!', type: 'success' });
+      
       setTimeout(() => {
         setScannerStatus(null);
         onClose();
@@ -82,90 +153,160 @@ export const BarcodeScannerOverlay: React.FC<BarcodeScannerOverlayProps> = ({ vi
     }
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color={THEME.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Scan Food</Text>
-          <View style={{ width: 44 }} />
-        </View>
+  const currentAmount = parseFloat(consumedAmount) || 0;
+  const ratio = currentAmount / 100;
+  const displayCals = Math.round((foodData?.caloriesPer100 || 0) * ratio);
+  const displayProtein = Math.round((foodData?.macrosPer100.protein || 0) * ratio);
+  const displayCarbs = Math.round((foodData?.macrosPer100.carbs || 0) * ratio);
+  const displayFat = Math.round((foodData?.macrosPer100.fat || 0) * ratio);
 
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <View style={styles.container}>
         {!permission.granted ? (
           <View style={styles.permissionContainer}>
-            <Text style={styles.permissionText}>We need your permission to show the camera</Text>
+            <Ionicons name="camera-outline" size={64} color={THEME.colors.primary} />
+            <Text style={styles.permissionText}>Camera access is required to scan products</Text>
             <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
               <Text style={styles.permissionButtonText}>Grant Permission</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose} style={{ marginTop: 20 }}>
+              <Text style={{ color: THEME.colors.textSecondary }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.cameraContainer}>
-            {!foodData && (
-              <CameraView
-                style={StyleSheet.absoluteFillObject}
-                facing="back"
-                onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-              />
+            <CameraView
+              style={StyleSheet.absoluteFillObject}
+              facing="back"
+              onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+            />
+
+            {/* Scanner Overlay UI */}
+            <View style={styles.scannerOverlay}>
+              <View style={styles.topMask} />
+              <View style={styles.middleRow}>
+                <View style={styles.sideMask} />
+                <View style={styles.scanZone}>
+                    <View style={[styles.corner, styles.topLeft]} />
+                    <View style={[styles.corner, styles.topRight]} />
+                    <View style={[styles.corner, styles.bottomLeft]} />
+                    <View style={[styles.corner, styles.bottomRight]} />
+                    
+                    <Animated.View 
+                        style={[
+                            styles.scanLine, 
+                            { 
+                                transform: [{ 
+                                    translateY: scanLineAnim.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: [0, SCAN_AREA_SIZE]
+                                    }) 
+                                }] 
+                            }
+                        ]} 
+                    >
+                        <LinearGradient
+                            colors={['transparent', THEME.colors.primary, 'transparent']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={StyleSheet.absoluteFill}
+                        />
+                    </Animated.View>
+                </View>
+                <View style={styles.sideMask} />
+              </View>
+              <View style={styles.bottomMask}>
+                <Text style={styles.scannerText}>Align barcode within the frame</Text>
+              </View>
+            </View>
+
+            {/* Back Button */}
+            <TouchableOpacity onPress={onClose} style={styles.backFab}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+
+            {loading && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color={THEME.colors.primary} />
+                <Text style={styles.loadingText}>Fetching nutrition data...</Text>
+              </View>
             )}
 
             {scannerStatus && (
-              <View style={[styles.statusOverlay, { backgroundColor: scannerStatus.type === 'success' ? 'rgba(52, 211, 153, 0.9)' : 'rgba(239, 68, 68, 0.9)' }]}>
-                <Ionicons name={scannerStatus.type === 'success' ? 'checkmark-circle' : 'alert-circle'} size={32} color="#FFF" />
+              <Animated.View style={[styles.statusBanner, { backgroundColor: scannerStatus.type === 'success' ? THEME.colors.success : THEME.colors.error }]}>
+                <Ionicons name={scannerStatus.type === 'success' ? 'checkmark-circle' : 'alert-circle'} size={24} color="#000" />
                 <Text style={styles.statusText}>{scannerStatus.message}</Text>
-              </View>
-            )}
-
-            {loading && (
-              <View style={styles.overlay}>
-                <ActivityIndicator size="large" color={THEME.colors.primary} />
-                <Text style={styles.loadingText}>Fetching macros mapping...</Text>
-              </View>
+              </Animated.View>
             )}
 
             {foodData && !loading && (
-              <View style={styles.resultContainer}>
+              <Animated.View style={[styles.resultOverlay, { transform: [{ translateY: cardSlideAnim }] }]}>
                 <View style={styles.resultCard}>
-                  <Text style={styles.foodName}>{foodData.name}</Text>
-                  <Text style={styles.servingText}>Values per 100g</Text>
+                  <View style={styles.cardHeader}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.brandName}>{foodData.brand || 'General Product'}</Text>
+                        <Text style={styles.foodName} numberOfLines={1}>{foodData.name}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => { setScanned(false); setFoodData(null); }} style={styles.rescanIcon}>
+                        <Ionicons name="refresh" size={20} color={THEME.colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
 
-                  <View style={styles.macroRow}>
-                    <View style={styles.macroItem}>
-                      <Text style={styles.macroValue}>{foodData.calories}</Text>
-                      <Text style={styles.macroLabel}>kcal</Text>
+                  <View style={styles.inputSection}>
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.inputLabel}>Weight consumed</Text>
+                        <View style={styles.inputWrapper}>
+                            <TextInput
+                                style={styles.amountInput}
+                                value={consumedAmount}
+                                onChangeText={setConsumedAmount}
+                                keyboardType="numeric"
+                                placeholder="0"
+                                placeholderTextColor={THEME.colors.textMuted}
+                                autoFocus
+                            />
+                            <Text style={styles.unitText}>grams</Text>
+                        </View>
                     </View>
-                    <View style={styles.macroItem}>
-                      <Text style={styles.macroValue}>{foodData.macros.protein}g</Text>
-                      <Text style={styles.macroLabel}>Protein</Text>
+                    
+                    <View style={styles.summaryLabelContainer}>
+                        <Text style={styles.summaryLabel}>Nutritional Summary</Text>
                     </View>
-                    <View style={styles.macroItem}>
-                      <Text style={styles.macroValue}>{foodData.macros.carbs}g</Text>
-                      <Text style={styles.macroLabel}>Carbs</Text>
+                  </View>
+
+                  <View style={styles.macroGrid}>
+                    <View style={styles.mainKcal}>
+                        <Text style={styles.kcalValue}>{displayCals}</Text>
+                        <Text style={styles.kcalLabel}>kcal</Text>
                     </View>
-                    <View style={styles.macroItem}>
-                      <Text style={styles.macroValue}>{foodData.macros.fat}g</Text>
-                      <Text style={styles.macroLabel}>Fat</Text>
+                    
+                    <View style={styles.macroDetails}>
+                        <View style={styles.macroMiniCard}>
+                            <View style={[styles.macroIndicator, { backgroundColor: '#FF6B6B' }]} />
+                            <Text style={styles.miniMacroValue}>{displayProtein}g</Text>
+                            <Text style={styles.miniMacroLabel}>Protein</Text>
+                        </View>
+                        <View style={styles.macroMiniCard}>
+                            <View style={[styles.macroIndicator, { backgroundColor: '#4DABF7' }]} />
+                            <Text style={styles.miniMacroValue}>{displayCarbs}g</Text>
+                            <Text style={styles.miniMacroLabel}>Carbs</Text>
+                        </View>
+                        <View style={styles.macroMiniCard}>
+                            <View style={[styles.macroIndicator, { backgroundColor: '#FCC419' }]} />
+                            <Text style={styles.miniMacroValue}>{displayFat}g</Text>
+                            <Text style={styles.miniMacroLabel}>Fat</Text>
+                        </View>
                     </View>
                   </View>
 
                   <View style={styles.actionRow}>
-                    <TouchableOpacity style={styles.cancelBtn} onPress={() => { setScanned(false); setFoodData(null); }}>
-                      <Text style={styles.cancelBtnText}>Rescan</Text>
-                    </TouchableOpacity>
                     <TouchableOpacity style={styles.saveBtn} onPress={confirmAndSave}>
                       <Text style={styles.saveBtnText}>Log to {targetMeal}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
-              </View>
-            )}
-
-            {!foodData && !loading && (
-              <View style={styles.scannerOverlay}>
-                <View style={styles.scannerTarget} />
-                <Text style={styles.scannerText}>Point at a barcode</Text>
-              </View>
+              </Animated.View>
             )}
           </View>
         )}
@@ -177,175 +318,284 @@ export const BarcodeScannerOverlay: React.FC<BarcodeScannerOverlayProps> = ({ vi
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingHorizontal: THEME.spacing.lg,
-    paddingBottom: THEME.spacing.md,
-    backgroundColor: THEME.colors.surface,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-  },
-  title: {
-    fontFamily: THEME.typography.bold,
-    fontSize: 20,
-    color: THEME.colors.text,
+    backgroundColor: '#000',
   },
   permissionContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 32,
+    backgroundColor: THEME.colors.background,
   },
   permissionText: {
     fontFamily: THEME.typography.medium,
     color: THEME.colors.text,
     textAlign: 'center',
-    marginBottom: 20,
+    marginTop: 24,
+    marginBottom: 32,
+    fontSize: 16,
+    lineHeight: 24,
   },
   permissionButton: {
     backgroundColor: THEME.colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: THEME.roundness.md,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: THEME.roundness.xl,
+    width: '100%',
+    alignItems: 'center',
   },
   permissionButtonText: {
     fontFamily: THEME.typography.bold,
-    color: THEME.colors.background,
+    color: '#000',
+    fontSize: 16,
   },
   cameraContainer: {
     flex: 1,
-    backgroundColor: '#000',
   },
-  scannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  backFab: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
   },
-  scannerTarget: {
-    width: 250,
-    height: 150,
-    borderWidth: 2,
+  scannerOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  topMask: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  middleRow: {
+    flexDirection: 'row',
+  },
+  sideMask: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  scanZone: {
+    width: SCAN_AREA_SIZE,
+    height: SCAN_AREA_SIZE,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  bottomMask: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    paddingTop: 40,
+  },
+  corner: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
     borderColor: THEME.colors.primary,
-    borderRadius: THEME.roundness.md,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  topLeft: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4 },
+  topRight: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4 },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4 },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4 },
+  scanLine: {
+    width: '100%',
+    height: 2,
+    position: 'absolute',
+    zIndex: 2,
   },
   scannerText: {
-    fontFamily: THEME.typography.bold,
+    fontFamily: THEME.typography.medium,
     color: '#FFF',
-    marginTop: 20,
-    fontSize: 16,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    fontSize: 14,
+    opacity: 0.8,
   },
-  overlay: {
+  loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     fontFamily: THEME.typography.semiBold,
-    color: THEME.colors.text,
+    color: '#FFF',
     marginTop: 16,
   },
-  resultContainer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    padding: THEME.spacing.xl,
-  },
-  resultCard: {
-    backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.roundness.lg,
-    padding: THEME.spacing.xl,
-    alignItems: 'center',
-  },
-  foodName: {
-    fontFamily: THEME.typography.black,
-    color: THEME.colors.text,
-    fontSize: 22,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  servingText: {
-    fontFamily: THEME.typography.regular,
-    color: THEME.colors.textSecondary,
-    fontSize: 14,
-    marginBottom: THEME.spacing.xl,
-  },
-  macroRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: THEME.spacing.xxl,
-  },
-  macroItem: {
-    alignItems: 'center',
-  },
-  macroValue: {
-    fontFamily: THEME.typography.bold,
-    color: THEME.colors.primary,
-    fontSize: 20,
-  },
-  macroLabel: {
-    fontFamily: THEME.typography.medium,
-    color: THEME.colors.textSecondary,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: THEME.spacing.md,
-    width: '100%',
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: THEME.roundness.md,
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-    alignItems: 'center',
-  },
-  cancelBtnText: {
-    fontFamily: THEME.typography.bold,
-    color: THEME.colors.text,
-  },
-  saveBtn: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: THEME.roundness.md,
-    backgroundColor: THEME.colors.primary,
-    alignItems: 'center',
-  },
-  saveBtnText: {
-    fontFamily: THEME.typography.bold,
-    color: THEME.colors.background,
-  },
-  statusOverlay: {
+  statusBanner: {
     position: 'absolute',
-    top: 100,
+    top: 110,
     left: 20,
     right: 20,
     padding: 16,
-    borderRadius: THEME.roundness.md,
+    borderRadius: THEME.roundness.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
     zIndex: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   statusText: {
-    color: '#FFF',
+    color: '#000',
     fontFamily: THEME.typography.bold,
+    fontSize: 15,
+  },
+  resultOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: THEME.spacing.md,
+    zIndex: 1000,
+  },
+  resultCard: {
+    backgroundColor: THEME.colors.surface,
+    borderRadius: 32,
+    padding: THEME.spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  brandName: {
+    fontFamily: THEME.typography.medium,
+    color: THEME.colors.textSecondary,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  foodName: {
+    fontFamily: THEME.typography.bold,
+    color: THEME.colors.text,
+    fontSize: 22,
+    marginTop: 2,
+  },
+  rescanIcon: {
+    padding: 8,
+    backgroundColor: THEME.colors.surfaceSecondary,
+    borderRadius: 12,
+  },
+  inputSection: {
+    marginBottom: 20,
+  },
+  inputContainer: {
+    backgroundColor: THEME.colors.surfaceSecondary,
+    borderRadius: 20,
+    padding: 16,
+  },
+  inputLabel: {
+    fontFamily: THEME.typography.semiBold,
+    color: THEME.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  amountInput: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.primary,
+    fontSize: 32,
+    padding: 0,
+  },
+  unitText: {
+    fontFamily: THEME.typography.bold,
+    color: THEME.colors.textSecondary,
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  summaryLabelContainer: {
+    marginTop: 20,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2A3441',
+  },
+  summaryLabel: {
+    fontFamily: THEME.typography.bold,
+    color: THEME.colors.textSecondary,
+    fontSize: 14,
+  },
+  macroGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: THEME.spacing.xl,
+    marginTop: 10,
+  },
+  mainKcal: {
+    flex: 1,
+    alignItems: 'center',
+    borderRightWidth: 1,
+    borderRightColor: '#2A3441',
+  },
+  kcalValue: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.text,
+    fontSize: 40,
+  },
+  kcalLabel: {
+    fontFamily: THEME.typography.bold,
+    color: THEME.colors.textSecondary,
+    fontSize: 14,
+    marginTop: -4,
+  },
+  macroDetails: {
+    flex: 1.5,
+    paddingLeft: 20,
+    gap: 12,
+  },
+  macroMiniCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  macroIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 8,
+  },
+  miniMacroValue: {
+    fontFamily: THEME.typography.bold,
+    color: THEME.colors.text,
+    fontSize: 16,
+    minWidth: 40,
+  },
+  miniMacroLabel: {
+    fontFamily: THEME.typography.medium,
+    color: THEME.colors.textSecondary,
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  actionRow: {
+    width: '100%',
+  },
+  saveBtn: {
+    backgroundColor: THEME.colors.primary,
+    paddingVertical: 18,
+    borderRadius: 20,
+    alignItems: 'center',
+    shadowColor: THEME.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveBtnText: {
+    fontFamily: THEME.typography.bold,
+    color: '#000',
     fontSize: 16,
   },
 });
