@@ -19,7 +19,8 @@
         "backgroundColor": "#0f172a",
         "foregroundImage": "./assets/logo.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.anabolic"
     },
     "web": {
       "favicon": "./assets/logo.png"

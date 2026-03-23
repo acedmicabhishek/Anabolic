@@ -4,7 +4,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import type { DimensionValue } from 'react-native';
 import { THEME } from '../../constants/theme';
-import { BodyMeasurementLog } from '../../types/metrics';
+import { BodyMeasurementLog, BodyPart } from '../../types/metrics';
 import { useMetrics } from '../../context/MetricsContext';
 import { converters } from '../../utils/converters';
 
@@ -32,7 +32,7 @@ export const HumanBodyModel: React.FC<HumanBodyModelProps> = React.memo(({ measu
   }, {}), [measurements]);
 
   const handleOpenModal = useCallback((realPartName: string) => {
-    openLogModal('body', realPartName as any);
+    openLogModal('body', realPartName as BodyPart);
   }, [openLogModal]);
 
   const renderMarker = useCallback((part: string, cx: number, cy: number, realPartName: string) => {

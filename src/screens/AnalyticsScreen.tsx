@@ -142,7 +142,7 @@ export const AnalyticsScreen: React.FC = () => {
             <TouchableOpacity
               key={f}
               style={[styles.segmentBtn, filter === f && styles.segmentBtnActive]}
-              onPress={() => setFilter(f as any)}
+              onPress={() => setFilter(f as 'WEEK' | 'MONTH' | 'YEAR')}
             >
               <Text style={[styles.segmentText, filter === f && styles.segmentTextActive]}>{f}</Text>
             </TouchableOpacity>

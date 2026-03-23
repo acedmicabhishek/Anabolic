@@ -65,7 +65,7 @@ export const ChartWidget: React.FC<ChartWidgetProps> = React.memo(({ title, labe
     },
   }), [datasets]);
 
-  const handleDataPointClick = useCallback(({ value, x, y, index }: any) => {
+  const handleDataPointClick = useCallback(({ value, x, y, index }: { value: number; x: number; y: number; index: number }) => {
     setTooltip({ value, x, y, index });
   }, []);
 
@@ -87,7 +87,7 @@ export const ChartWidget: React.FC<ChartWidgetProps> = React.memo(({ title, labe
     ) : null;
   }, [tooltip]);
 
-  const renderDotContent = useCallback(({ x, y, index }: any) => {
+  const renderDotContent = useCallback(({ x, y, index }: { x: number; y: number; index: number }) => {
     if (!data) return null;
     if (data.length > 10 && index !== 0 && index !== data.length - 1 && index !== Math.floor(data.length / 2)) {
       return null;

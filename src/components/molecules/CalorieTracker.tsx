@@ -188,7 +188,7 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({
             <View key={macro.label} style={styles.macroItem}>
               <View style={styles.statsContainer}>
                 <View style={styles.labelWithIcon}>
-                  <Ionicons name={macro.icon as any} size={14} color={macro.color} />
+                  <Ionicons name={macro.icon as keyof typeof Ionicons.glyphMap} size={14} color={macro.color} />
                   <Text style={styles.macroLabel}> {macro.label}</Text>
                 </View>
                 <Text style={styles.macroValue}>

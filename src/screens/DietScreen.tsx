@@ -59,7 +59,7 @@ export const DietScreen: React.FC = () => {
   
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <Ionicons name="flash" size={24} color={THEME.colors.primary} />
@@ -126,7 +126,7 @@ export const DietScreen: React.FC = () => {
           {MEALS.map((meal) => (
             <View key={meal.name} style={styles.mealCard}>
               <View style={styles.mealIconBox}>
-                <Ionicons name={meal.icon as any} size={24} color={THEME.colors.primary} />
+                <Ionicons name={meal.icon as keyof typeof Ionicons.glyphMap} size={24} color={THEME.colors.primary} />
               </View>
               <View style={styles.mealInfo}>
                 <Text style={styles.mealName}>{meal.name}</Text>

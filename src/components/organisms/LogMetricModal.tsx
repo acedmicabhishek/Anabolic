@@ -66,10 +66,10 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
 
   const handleCategoryChange = (val: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setType(val as any);
+    setType(val as 'weight' | 'body' | 'height' | 'calories' | 'water');
   };
 
-  
+
   React.useEffect(() => {
     if (visible) {
       setType(logType);
@@ -79,7 +79,7 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
     }
   }, [visible, logType, logSubType]);
 
-  
+
   React.useEffect(() => {
     setValue('');
     setFeetValue('');
@@ -90,7 +90,7 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
     setIsMacroExpanded(false);
   }, [type]);
 
-  
+
   React.useEffect(() => {
     if (visible) {
       if (type === 'weight') setCurrentUnit(metrics.preferences.weight);
@@ -138,6 +138,16 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
         setLoading(false);
         return;
       }
+    } else if (type === 'calories' && isMacroExpanded) {
+      const p = Number(protein) || 0;
+      const c = Number(carbs) || 0;
+      const f = Number(fat) || 0;
+      const calcValue = (p * 4) + (c * 4) + (f * 9);
+      numericValue = Number(value) || calcValue;
+      if (numericValue === 0 && !value) {
+        setLoading(false);
+        return;
+      }
     } else {
       if (!value || isNaN(Number(value))) {
         setLoading(false);
@@ -146,12 +156,12 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
       numericValue = Number(value);
     }
 
-    
+
     if (type === 'weight' && currentUnit === 'lb') numericValue = converters.lbToKg(numericValue);
     if (type === 'height' && currentUnit === 'inch') numericValue = converters.inchToCm(numericValue);
     if (type === 'body' && currentUnit === 'inch') numericValue = converters.inchToCm(numericValue);
     if (type === 'height' && currentUnit === 'ft') {
-      numericValue = converters.inchToCm(numericValue); 
+      numericValue = converters.inchToCm(numericValue);
     }
 
     try {
@@ -166,7 +176,7 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
       else if (type === 'calories') await addMealEntry(logSubType || 'Quick Add', numericValue, date.toISOString(), undefined, macroData);
       else if (type === 'water') await updateWater((metrics.currentWater || 0) + numericValue, date.toISOString());
       else await addBodyMeasurement(selectedPart, numericValue, 'cm', date.toISOString());
-      
+
       onClose();
     } catch (e) {
       console.error(e);
@@ -200,7 +210,7 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
               <Text style={styles.headerTitle}>{logSubType ? logSubType : 'LOG ENTRY'}</Text>
               <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateSelector}>
                 <Ionicons name="calendar-outline" size={12} color={THEME.colors.primary} />
-                <Text style={styles.dateText}>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}</Text>
+                <Text style={styles.dateText}>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={handleSave} disabled={loading} style={styles.headerActionBtn}>
@@ -210,70 +220,70 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
 
           {!logSubType && (
             <View style={styles.segmentedPickerWrapper}>
-                <View style={styles.segmentedPicker}>
+              <View style={styles.segmentedPicker}>
                 {CATEGORIES.map((cat) => (
-                    <TouchableOpacity
+                  <TouchableOpacity
                     key={cat.value}
                     onPress={() => handleCategoryChange(cat.value)}
                     style={[styles.segment, type === cat.value && styles.segmentActive]}
-                    >
-                    <Ionicons 
-                        name={cat.icon as any} 
-                        size={14} 
-                        color={type === cat.value ? THEME.colors.background : THEME.colors.textMuted} 
+                  >
+                    <Ionicons
+                      name={cat.icon as keyof typeof Ionicons.glyphMap}
+                      size={14}
+                      color={type === cat.value ? THEME.colors.background : THEME.colors.textMuted}
                     />
                     {type === cat.value && (
-                        <Text style={styles.segmentText}>{cat.label.split(' ')[0]}</Text>
+                      <Text style={styles.segmentText}>{cat.label.split(' ')[0]}</Text>
                     )}
-                    </TouchableOpacity>
+                  </TouchableOpacity>
                 ))}
-                </View>
+              </View>
             </View>
           )}
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
             <View style={styles.heroGlassCard}>
-                <View style={styles.heroGlow} />
-                {type === 'height' && currentUnit === 'ft' ? (
-                  <View style={styles.dualArtRow}>
-                    <View style={styles.heroArtBox}>
-                        <TextInput
-                            style={styles.heroArtInput}
-                            keyboardType="number-pad"
-                            value={feetValue}
-                            onChangeText={setFeetValue}
-                            placeholder="0"
-                            placeholderTextColor="rgba(255,255,255,0.05)"
-                            autoFocus
-                        />
-                        <Text style={styles.heroArtUnit}>FT</Text>
-                    </View>
-                    <View style={styles.heroArtBox}>
-                        <TextInput
-                            style={styles.heroArtInput}
-                            keyboardType="number-pad"
-                            value={inchesValue}
-                            onChangeText={setInchesValue}
-                            placeholder="0"
-                            placeholderTextColor="rgba(255,255,255,0.05)"
-                        />
-                        <Text style={styles.heroArtUnit}>IN</Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.heroArtWrapper}>
+              <View style={styles.heroGlow} />
+              {type === 'height' && currentUnit === 'ft' ? (
+                <View style={styles.dualArtRow}>
+                  <View style={styles.heroArtBox}>
                     <TextInput
                       style={styles.heroArtInput}
-                      value={value}
-                      onChangeText={setValue}
-                      keyboardType="numeric"
+                      keyboardType="number-pad"
+                      value={feetValue}
+                      onChangeText={setFeetValue}
                       placeholder="0"
                       placeholderTextColor="rgba(255,255,255,0.05)"
                       autoFocus
                     />
-                    <Text style={styles.heroArtUnit}>{currentUnit.toUpperCase()}</Text>
+                    <Text style={styles.heroArtUnit}>FT</Text>
                   </View>
-                )}
+                  <View style={styles.heroArtBox}>
+                    <TextInput
+                      style={styles.heroArtInput}
+                      keyboardType="number-pad"
+                      value={inchesValue}
+                      onChangeText={setInchesValue}
+                      placeholder="0"
+                      placeholderTextColor="rgba(255,255,255,0.05)"
+                    />
+                    <Text style={styles.heroArtUnit}>IN</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.heroArtWrapper}>
+                  <TextInput
+                    style={styles.heroArtInput}
+                    value={value}
+                    onChangeText={setValue}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="rgba(255,255,255,0.05)"
+                    autoFocus
+                  />
+                  <Text style={styles.heroArtUnit}>{currentUnit.toUpperCase()}</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.quickBarArtistic}>
@@ -285,58 +295,58 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
             </View>
 
             <View style={styles.luxuryOptions}>
-                {type === 'body' && (
-                    <View style={styles.bodyPartLUX}>
-                        <BodyPartPicker selectedPart={selectedPart} onSelect={setSelectedPart} />
-                    </View>
-                )}
+              {type === 'body' && (
+                <View style={styles.bodyPartLUX}>
+                  <BodyPartPicker selectedPart={selectedPart} onSelect={setSelectedPart} />
+                </View>
+              )}
 
-                {type === 'calories' && (
-                    <View style={styles.macroIntegratedLUX}>
-                        <TouchableOpacity 
-                            style={styles.macroToggleLux} 
-                            onPress={() => {
-                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                                setIsMacroExpanded(!isMacroExpanded);
-                            }}
-                        >
-                            <View style={styles.luxRow}>
-                                <View style={styles.luxIconBg}>
-                                    <Ionicons name="nutrition" size={18} color={THEME.colors.primary} />
-                                </View>
-                                <Text style={styles.luxOptionTitle}>Nutritional Blueprint</Text>
-                            </View>
-                            <Ionicons name={isMacroExpanded ? 'chevron-up' : 'chevron-forward'} size={18} color={THEME.colors.textMuted} />
-                        </TouchableOpacity>
-
-                        {isMacroExpanded && (
-                            <View style={styles.macroLuxGrid}>
-                                {[
-                                    { label: 'PRO', val: protein, set: setProtein, color: '#A78BFA' },
-                                    { label: 'CHO', val: carbs, set: setCarbs, color: '#FCD34D' },
-                                    { label: 'FAT', val: fat, set: setFat, color: '#F87171' },
-                                ].map(m => (
-                                    <View key={m.label} style={[styles.macroLuxBox, { borderColor: m.color + '30' }]}>
-                                        <Text style={[styles.macroLuxLabel, { color: m.color }]}>{m.label}</Text>
-                                        <TextInput
-                                            style={styles.macroLuxInput}
-                                            keyboardType="decimal-pad"
-                                            value={m.val}
-                                            onChangeText={m.set}
-                                            placeholder="0"
-                                            placeholderTextColor="rgba(255,255,255,0.05)"
-                                        />
-                                        <Text style={styles.macroLuxUnit}>GRAMS</Text>
-                                    </View>
-                                ))}
-                                <TouchableOpacity style={styles.calcArtBtn} onPress={calculateCaloriesFromMacros}>
-                                    <Ionicons name="sync" size={16} color={THEME.colors.primary} />
-                                    <Text style={styles.calcArtBtnText}>Auto-calculate Calories</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
+              {type === 'calories' && (
+                <View style={styles.macroIntegratedLUX}>
+                  <TouchableOpacity
+                    style={styles.macroToggleLux}
+                    onPress={() => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      setIsMacroExpanded(!isMacroExpanded);
+                    }}
+                  >
+                    <View style={styles.luxRow}>
+                      <View style={styles.luxIconBg}>
+                        <Ionicons name="nutrition" size={18} color={THEME.colors.primary} />
+                      </View>
+                      <Text style={styles.luxOptionTitle}>Nutritional Track</Text>
                     </View>
-                )}
+                    <Ionicons name={isMacroExpanded ? 'chevron-up' : 'chevron-forward'} size={18} color={THEME.colors.textMuted} />
+                  </TouchableOpacity>
+
+                  {isMacroExpanded && (
+                    <View style={styles.macroLuxGrid}>
+                      {[
+                        { label: 'PRO', val: protein, set: setProtein, color: '#A78BFA' },
+                        { label: 'CARBS', val: carbs, set: setCarbs, color: '#FCD34D' },
+                        { label: 'FAT', val: fat, set: setFat, color: '#F87171' },
+                      ].map(m => (
+                        <View key={m.label} style={[styles.macroLuxBox, { borderColor: m.color + '30' }]}>
+                          <Text style={[styles.macroLuxLabel, { color: m.color }]}>{m.label}</Text>
+                          <TextInput
+                            style={styles.macroLuxInput}
+                            keyboardType="decimal-pad"
+                            value={m.val}
+                            onChangeText={m.set}
+                            placeholder="0"
+                            placeholderTextColor="rgba(255,255,255,0.05)"
+                          />
+                          <Text style={styles.macroLuxUnit}>GRAMS</Text>
+                        </View>
+                      ))}
+                      {/* <TouchableOpacity style={styles.calcArtBtn} onPress={calculateCaloriesFromMacros}>
+                        <Ionicons name="sync" size={16} color={THEME.colors.primary} />
+                        <Text style={styles.calcArtBtnText}>Auto-calculate Calories</Text>
+                      </TouchableOpacity> */}
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           </ScrollView>
 
@@ -542,7 +552,7 @@ const styles = StyleSheet.create({
     marginBottom: 60,
   },
   bodyPartLUX: {
-      marginBottom: THEME.spacing.lg,
+    marginBottom: THEME.spacing.lg,
   },
   macroIntegratedLUX: {
     backgroundColor: 'rgba(255,255,255,0.02)',
@@ -563,12 +573,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   luxIconBg: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
-      backgroundColor: 'rgba(141, 224, 166, 0.1)',
-      alignItems: 'center',
-      justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(141, 224, 166, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   luxOptionTitle: {
     fontFamily: THEME.typography.black,
@@ -588,7 +598,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    height: 56,
+    minHeight: 56,
   },
   macroLuxLabel: {
     fontFamily: THEME.typography.black,
@@ -604,7 +614,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     includeFontPadding: false,
-    height: '100%',
+    paddingVertical: 0,
   },
   macroLuxUnit: {
     fontFamily: THEME.typography.black,

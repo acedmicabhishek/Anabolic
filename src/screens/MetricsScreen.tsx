@@ -22,6 +22,7 @@ import { GradientText } from '../components/atoms/GradientText';
 import { FancyDatePicker } from '../components/molecules/FancyDatePicker';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
+import { MetricsIcon } from '../components/atoms/MetricsIcon';
 
 export const MetricsScreen: React.FC = () => {
   const { 
@@ -60,7 +61,7 @@ export const MetricsScreen: React.FC = () => {
   const currentWeight = useMemo(() => metrics.weightHistory[0]?.value || '0.0', [metrics.weightHistory]);
   const currentHeight = useMemo(() => metrics.height || '0.0', [metrics.height]);
 
-  const recentMeasurements = useMemo(() => metrics.bodyMeasurements.reduce((acc: Record<string, any>, log) => {
+  const recentMeasurements = useMemo(() => metrics.bodyMeasurements.reduce((acc: Record<string, BodyMeasurementLog>, log) => {
     if (!acc[log.part]) acc[log.part] = log;
     return acc;
   }, {} as Record<string, BodyMeasurementLog>), [metrics.bodyMeasurements]);
@@ -100,9 +101,10 @@ export const MetricsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
+            <MetricsIcon size={24} color={THEME.colors.primary} />
             <GradientText style={styles.title}>Metrics</GradientText>
             <TouchableOpacity 
               style={styles.dateIndicator} 

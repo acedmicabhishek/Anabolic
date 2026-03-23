@@ -72,9 +72,9 @@ export const AppNavigator = () => {
       >
         <Tab.Screen name="Diet" component={DietScreen} />
         <Tab.Screen name="Analytics" component={AnalyticsScreen} />
-        <Tab.Screen 
-          name="Add" 
-          component={DummyScreen} 
+        <Tab.Screen
+          name="Add"
+          component={DummyScreen}
           options={{
             tabBarIcon: () => null,
             tabBarButton: (props) => (
@@ -86,9 +86,9 @@ export const AppNavigator = () => {
         <Tab.Screen name="Settings" component={SettingsScreen} />
       </Tab.Navigator>
 
-      <LogMetricModal 
-        visible={isLogModalVisible} 
-        onClose={closeLogModal} 
+      <LogMetricModal
+        visible={isLogModalVisible}
+        onClose={closeLogModal}
       />
     </>
   );

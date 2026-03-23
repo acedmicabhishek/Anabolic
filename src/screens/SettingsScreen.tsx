@@ -7,6 +7,7 @@ import { Button } from '../components/atoms/Button';
 import { storage } from '../services/storage';
 import { useMetrics } from '../context/MetricsContext';
 import { GradientText } from '../components/atoms/GradientText';
+import { SettingsIcon } from '../components/atoms/SettingsIcon';
 
 export const SettingsScreen: React.FC = () => {
   const { metrics, isLoading, simulateData, setCalorieGoal, setWaterGoal, setTargetWeight, updateMacros, updatePreferences } = useMetrics();
@@ -21,7 +22,7 @@ export const SettingsScreen: React.FC = () => {
       const response = await fetch('https://api.github.com/repos/acedmicabhishek/Anabolic/releases');
       if (!response.ok) throw new Error('Check failed');
       const releases = await response.json();
-      
+
       if (!releases || releases.length === 0) {
         showStatus('Update Status', 'Your version is current.', 'success');
         return;
@@ -112,7 +113,10 @@ export const SettingsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <GradientText style={styles.title}>Settings</GradientText>
+          <View style={styles.titleRow}>
+            <SettingsIcon size={28} color={THEME.colors.primary} />
+            <GradientText style={styles.title}>Settings</GradientText>
+          </View>
           <Text style={styles.subtitle}>Optimize your performance baseline</Text>
         </View>
 
@@ -124,30 +128,30 @@ export const SettingsScreen: React.FC = () => {
           </View>
           <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
             {[
-                { label: 'Weight', icon: 'scale-outline', options: ['kg', 'lb'], current: currentPrefs.weight, key: 'weight' },
-                { label: 'Height', icon: 'resize-outline', options: ['cm', 'ft'], current: currentPrefs.height, key: 'height' },
-                { label: 'Body', icon: 'body-outline', options: ['cm', 'in'], current: currentPrefs.body, key: 'body' },
-                { label: 'Fluid', icon: 'water-outline', options: ['ml', 'oz'], current: currentPrefs.fluid, key: 'fluid' },
+              { label: 'Weight', icon: 'scale-outline', options: ['kg', 'lb'], current: currentPrefs.weight, key: 'weight' },
+              { label: 'Height', icon: 'resize-outline', options: ['cm', 'ft'], current: currentPrefs.height, key: 'height' },
+              { label: 'Body', icon: 'body-outline', options: ['cm', 'in'], current: currentPrefs.body, key: 'body' },
+              { label: 'Fluid', icon: 'water-outline', options: ['ml', 'oz'], current: currentPrefs.fluid, key: 'fluid' },
             ].map((pref, idx) => (
-                <View key={pref.label} style={[styles.prefRow, idx > 0 && styles.prefSeparator]}>
-                   <View style={styles.prefLeft}>
-                      <View style={styles.iconCircle}>
-                        <Ionicons name={pref.icon as any} size={14} color={THEME.colors.primary} />
-                      </View>
-                      <Text style={styles.prefLabel}>{pref.label}</Text>
-                   </View>
-                   <View style={styles.segmentedControl}>
-                      {pref.options.map(opt => (
-                        <TouchableOpacity 
-                            key={opt}
-                            onPress={() => updatePreferences({ [pref.key]: opt as any })}
-                            style={[styles.segmentBtn, pref.current === opt && styles.segmentBtnActive]}
-                        >
-                            <Text style={[styles.segmentText, pref.current === opt && styles.segmentTextActive]}>{opt.toUpperCase()}</Text>
-                        </TouchableOpacity>
-                      ))}
-                   </View>
+              <View key={pref.label} style={[styles.prefRow, idx > 0 && styles.prefSeparator]}>
+                <View style={styles.prefLeft}>
+                  <View style={styles.iconCircle}>
+                    <Ionicons name={pref.icon as any} size={14} color={THEME.colors.primary} />
+                  </View>
+                  <Text style={styles.prefLabel}>{pref.label}</Text>
                 </View>
+                <View style={styles.segmentedControl}>
+                  {pref.options.map(opt => (
+                    <TouchableOpacity
+                      key={opt}
+                      onPress={() => updatePreferences({ [pref.key]: opt as any })}
+                      style={[styles.segmentBtn, pref.current === opt && styles.segmentBtnActive]}
+                    >
+                      <Text style={[styles.segmentText, pref.current === opt && styles.segmentTextActive]}>{opt.toUpperCase()}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             ))}
           </LinearGradient>
         </View>
@@ -159,30 +163,30 @@ export const SettingsScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Main Goals</Text>
           </View>
           <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
-                {[
-                    { label: 'Calorie Goal', val: calGoal, set: setCalGoal, sub: 'KCAL', icon: 'flash', color: '#10B981' },
-                    { label: 'Hydration Goal', val: waterGoal, set: setWGoal, sub: 'ML', icon: 'water', color: '#3B82F6' },
-                    { label: 'Weight Goal', val: targetWeightValue, set: setTargetWeightValue, sub: metrics.preferences.weight.toUpperCase(), icon: 'trophy', color: '#F59E0B' },
-                ].map((item, idx) => (
-                    <View key={item.label} style={[styles.priorityRow, idx > 0 && styles.prefSeparator]}>
-                        <View style={styles.prefLeft}>
-                            <View style={[styles.iconCircle, { backgroundColor: `${item.color}15` }]}>
-                                <Ionicons name={item.icon as any} size={16} color={item.color} />
-                            </View>
-                            <Text style={styles.prefLabel} numberOfLines={1}>{item.label}</Text>
-                        </View>
-                        <View style={styles.inputWrapper}>
-                            <TextInput 
-                                style={styles.priorityInput} 
-                                keyboardType="numeric" 
-                                value={item.val} 
-                                onChangeText={item.set}
-                                selectTextOnFocus
-                            />
-                            <Text style={styles.inputSub}>{item.sub}</Text>
-                        </View>
-                    </View>
-                ))}
+            {[
+              { label: 'Calorie Goal', val: calGoal, set: setCalGoal, sub: 'KCAL', icon: 'flash', color: '#10B981' },
+              { label: 'Hydration Goal', val: waterGoal, set: setWGoal, sub: 'ML', icon: 'water', color: '#3B82F6' },
+              { label: 'Weight Goal', val: targetWeightValue, set: setTargetWeightValue, sub: metrics.preferences.weight.toUpperCase(), icon: 'trophy', color: '#F59E0B' },
+            ].map((item, idx) => (
+              <View key={item.label} style={[styles.priorityRow, idx > 0 && styles.prefSeparator]}>
+                <View style={styles.prefLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: `${item.color}15` }]}>
+                    <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={16} color={item.color} />
+                  </View>
+                  <Text style={styles.prefLabel} numberOfLines={1}>{item.label}</Text>
+                </View>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.priorityInput}
+                    keyboardType="numeric"
+                    value={item.val}
+                    onChangeText={item.set}
+                    selectTextOnFocus
+                  />
+                  <Text style={styles.inputSub}>{item.sub}</Text>
+                </View>
+              </View>
+            ))}
           </LinearGradient>
         </View>
 
@@ -193,44 +197,44 @@ export const SettingsScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Macro Split</Text>
           </View>
           <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
-            
+
             {/* Macro Gauge */}
             <View style={styles.gaugeContainer}>
-                <View style={styles.gaugeBar}>
-                    <View style={[styles.gaugeSegment, { width: `${macroSplit.p}%`, backgroundColor: '#3B82F6' }]} />
-                    <View style={[styles.gaugeSegment, { width: `${macroSplit.c}%`, backgroundColor: '#FCD34D' }]} />
-                    <View style={[styles.gaugeSegment, { width: `${macroSplit.f}%`, backgroundColor: '#EF4444' }]} />
-                </View>
-                <View style={styles.gaugeLabels}>
-                    <Text style={[styles.gaugeLabelText, { color: '#3B82F6' }]}>{Math.round(macroSplit.p)}% PRO</Text>
-                    <Text style={[styles.gaugeLabelText, { color: '#FCD34D' }]}>{Math.round(macroSplit.c)}% CHO</Text>
-                    <Text style={[styles.gaugeLabelText, { color: '#EF4444' }]}>{Math.round(macroSplit.f)}% FAT</Text>
-                </View>
+              <View style={styles.gaugeBar}>
+                <View style={[styles.gaugeSegment, { width: `${macroSplit.p}%`, backgroundColor: '#3B82F6' }]} />
+                <View style={[styles.gaugeSegment, { width: `${macroSplit.c}%`, backgroundColor: '#FCD34D' }]} />
+                <View style={[styles.gaugeSegment, { width: `${macroSplit.f}%`, backgroundColor: '#EF4444' }]} />
+              </View>
+              <View style={styles.gaugeLabels}>
+                <Text style={[styles.gaugeLabelText, { color: '#3B82F6' }]}>{Math.round(macroSplit.p)}% PRO</Text>
+                <Text style={[styles.gaugeLabelText, { color: '#FCD34D' }]}>{Math.round(macroSplit.c)}% CHO</Text>
+                <Text style={[styles.gaugeLabelText, { color: '#EF4444' }]}>{Math.round(macroSplit.f)}% FAT</Text>
+              </View>
             </View>
 
             {[
-                { label: 'Protein', val: protein, set: setProtein, color: '#3B82F6', icon: 'fitness' },
-                { label: 'Carbs', val: carbs, set: setCarbs, color: '#FCD34D', icon: 'leaf' },
-                { label: 'Fats', val: fat, set: setFat, color: '#EF4444', icon: 'pizza' },
+              { label: 'Protein', val: protein, set: setProtein, color: '#3B82F6', icon: 'fitness' },
+              { label: 'Carbs', val: carbs, set: setCarbs, color: '#FCD34D', icon: 'leaf' },
+              { label: 'Fats', val: fat, set: setFat, color: '#EF4444', icon: 'pizza' },
             ].map((item, idx) => (
-                <View key={item.label} style={[styles.macroRow, idx > 0 && styles.prefSeparator]}>
-                    <View style={styles.prefLeft}>
-                        <View style={[styles.iconCircle, { backgroundColor: `${item.color}15` }]}>
-                            <Ionicons name={item.icon as any} size={16} color={item.color} />
-                        </View>
-                        <Text style={styles.prefLabel}>{item.label}</Text>
-                    </View>
-                    <View style={styles.macroInputWrapper}>
-                        <TextInput 
-                            style={[styles.macroInput, { color: item.color }]} 
-                            keyboardType="numeric" 
-                            value={item.val} 
-                            onChangeText={item.set}
-                            selectTextOnFocus
-                        />
-                        <Text style={styles.inputSub}>G</Text>
-                    </View>
+              <View key={item.label} style={[styles.macroRow, idx > 0 && styles.prefSeparator]}>
+                <View style={styles.prefLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: `${item.color}15` }]}>
+                    <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={16} color={item.color} />
+                  </View>
+                  <Text style={styles.prefLabel}>{item.label}</Text>
                 </View>
+                <View style={styles.macroInputWrapper}>
+                  <TextInput
+                    style={[styles.macroInput, { color: item.color }]}
+                    keyboardType="numeric"
+                    value={item.val}
+                    onChangeText={item.set}
+                    selectTextOnFocus
+                  />
+                  <Text style={styles.inputSub}>G</Text>
+                </View>
+              </View>
             ))}
             <Button title="Save Everything" onPress={handleSaveTargets} disabled={isLoading} style={{ marginTop: 16 }} />
           </LinearGradient>
@@ -238,27 +242,27 @@ export const SettingsScreen: React.FC = () => {
 
         {/* App Info & Danger */}
         <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-                <Ionicons name="information-circle-outline" size={18} color={THEME.colors.primary} />
-                <Text style={styles.sectionTitle}>Details</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="information-circle-outline" size={18} color={THEME.colors.primary} />
+            <Text style={styles.sectionTitle}>Details</Text>
+          </View>
+          <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
+            <View style={[styles.infoRow, { paddingBottom: 14 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoTitle}>Anabolic</Text>
+                <Text style={styles.infoVersion}>v2.0</Text>
+              </View>
+              <TouchableOpacity onPress={checkForUpdates} disabled={isChecking} style={styles.updateBadge}>
+                <Text style={styles.updateBadgeText}>{isChecking ? '...' : 'Update'}</Text>
+              </TouchableOpacity>
             </View>
-            <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
-                <View style={[styles.infoRow, { paddingBottom: 14 }]}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.infoTitle}>Anabolic PRO</Text>
-                        <Text style={styles.infoVersion}>v1.0.5 Platinum</Text>
-                    </View>
-                    <TouchableOpacity onPress={checkForUpdates} disabled={isChecking} style={styles.updateBadge}>
-                        <Text style={styles.updateBadgeText}>{isChecking ? '...' : 'Check'}</Text>
-                    </TouchableOpacity>
-                </View>
-                <View style={[styles.prefSeparator, { paddingTop: 14 }]}>
-                    <TouchableOpacity onPress={initiateClearData} style={styles.dangerAction}>
-                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                        <Text style={styles.dangerActionText}>Purge All Data</Text>
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient>
+            <View style={[styles.prefSeparator, { paddingTop: 14 }]}>
+              <TouchableOpacity onPress={initiateClearData} style={styles.dangerAction}>
+                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                <Text style={styles.dangerActionText}>Purge All Data</Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
         </View>
       </ScrollView>
 
@@ -267,7 +271,7 @@ export const SettingsScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.dangerIconContainer}>
-                <Ionicons name="warning-outline" size={28} color="#EF4444" />
+              <Ionicons name="warning-outline" size={28} color="#EF4444" />
             </View>
             <Text style={styles.modalTitle}>Confirm Data Wipe</Text>
             <Text style={styles.modalText}>This cannot be undone. Enter code below:</Text>
@@ -292,16 +296,16 @@ export const SettingsScreen: React.FC = () => {
       {/* Status Modal */}
       <Modal visible={statusModal.visible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-            <View style={styles.statusBox}>
-                <Ionicons 
-                    name={statusModal.type === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'} 
-                    size={48} 
-                    color={statusModal.type === 'success' ? THEME.colors.primary : '#EF4444'} 
-                />
-                <Text style={styles.statusTitle}>{statusModal.title}</Text>
-                <Text style={styles.statusMsg}>{statusModal.message}</Text>
-                <Button title="Dismiss" onPress={() => setStatusModal({ ...statusModal, visible: false })} style={{ width: '100%' }} />
-            </View>
+          <View style={styles.statusBox}>
+            <Ionicons
+              name={statusModal.type === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+              size={48}
+              color={statusModal.type === 'success' ? THEME.colors.primary : '#EF4444'}
+            />
+            <Text style={styles.statusTitle}>{statusModal.title}</Text>
+            <Text style={styles.statusMsg}>{statusModal.message}</Text>
+            <Button title="Dismiss" onPress={() => setStatusModal({ ...statusModal, visible: false })} style={{ width: '100%' }} />
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -326,6 +330,11 @@ const styles = StyleSheet.create({
     fontFamily: THEME.typography.black,
     fontSize: 32,
     letterSpacing: -1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.sm,
   },
   subtitle: {
     fontFamily: THEME.typography.medium,

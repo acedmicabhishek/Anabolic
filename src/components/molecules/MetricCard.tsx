@@ -59,7 +59,7 @@ export const MetricCard: React.FC<MetricCardProps> = React.memo(({
     <Container style={styles.container} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.headerRow}>
         <View style={styles.labelContainer}>
-          {iconName && <Ionicons name={iconName as any} size={14} color={THEME.colors.primary} style={{ marginRight: 6 }} />}
+          {iconName && <Ionicons name={iconName as keyof typeof Ionicons.glyphMap} size={14} color={THEME.colors.primary} style={{ marginRight: 6 }} />}
           <Text style={styles.label}>{label}</Text>
         </View>
         {onPress && <Ionicons name="chevron-forward" size={12} color={THEME.colors.textMuted} />}
