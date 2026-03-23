@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
+import { LinearGradient } from 'expo-linear-gradient';
 import { THEME } from '../constants/theme';
 import { Button } from '../components/atoms/Button';
 import { storage } from '../services/storage';
@@ -9,7 +9,7 @@ import { useMetrics } from '../context/MetricsContext';
 import { GradientText } from '../components/atoms/GradientText';
 
 export const SettingsScreen: React.FC = () => {
-  const { metrics, isLoading, simulateData, setCalorieGoal, setWaterGoal, setTargetWeight, updateWater, updateMacros, updatePreferences, updateAge, updateGender } = useMetrics();
+  const { metrics, isLoading, simulateData, setCalorieGoal, setWaterGoal, setTargetWeight, updateMacros, updatePreferences } = useMetrics();
 
   const currentPrefs = metrics.preferences || { weight: 'kg', height: 'cm', body: 'cm', fluid: 'ml' };
 
@@ -19,13 +19,11 @@ export const SettingsScreen: React.FC = () => {
     setIsChecking(true);
     try {
       const response = await fetch('https://api.github.com/repos/acedmicabhishek/Anabolic/releases');
-      if (!response.ok) {
-        throw new Error('Failed to fetch releases');
-      }
+      if (!response.ok) throw new Error('Check failed');
       const releases = await response.json();
       
       if (!releases || releases.length === 0) {
-        showStatus('Update Status', 'No new versions found on store.', 'success');
+        showStatus('Update Status', 'Your version is current.', 'success');
         return;
       }
 
@@ -33,16 +31,13 @@ export const SettingsScreen: React.FC = () => {
       const latestVersionNum = parseFloat(latestRelease.name || latestRelease.tag_name);
       const currentVersionNum = 1.0;
 
-      if (isNaN(latestVersionNum)) {
-        showStatus('Update Status', 'Could not parse version. Please check GitHub manually.', 'error');
-      } else if (latestVersionNum > currentVersionNum) {
-        showStatus('Update Available!', `Version ${latestVersionNum} is available. Visit GitHub to update.`, 'success');
+      if (latestVersionNum > currentVersionNum) {
+        showStatus('Update Found', `v${latestVersionNum} is available via GitHub Repo.`, 'success');
       } else {
-        showStatus('Update Status', 'Your app is up to date!', 'success');
+        showStatus('Up to Date', 'You are running the latest version.', 'success');
       }
-    } catch (error) {
-      console.error(error);
-      showStatus('Error', 'Failed to check for updates. ' + (error as Error).message, 'error');
+    } catch {
+      showStatus('Error', 'Update check failed.', 'error');
     } finally {
       setIsChecking(false);
     }
@@ -56,10 +51,7 @@ export const SettingsScreen: React.FC = () => {
   const [targetWeightValue, setTargetWeightValue] = useState((metrics.targetWeight || '').toString());
 
   const [statusModal, setStatusModal] = useState<{ visible: boolean, title: string, message: string, type: 'success' | 'error' }>({
-    visible: false,
-    title: '',
-    message: '',
-    type: 'success'
+    visible: false, title: '', message: '', type: 'success'
   });
 
   const showStatus = (title: string, message: string, type: 'success' | 'error' = 'success') => {
@@ -75,8 +67,25 @@ export const SettingsScreen: React.FC = () => {
       carbs: Number(carbs) || 250,
       fat: Number(fat) || 70,
     });
-    showStatus('Saved', 'Nutrition targets updated successfully.');
+    showStatus('Success', 'Targets updated successfully.');
   };
+
+  // Macro Gauge Logic
+  const macroSplit = useMemo(() => {
+    const p = parseFloat(protein) || 0;
+    const c = parseFloat(carbs) || 0;
+    const f = parseFloat(fat) || 0;
+    const pCal = p * 4;
+    const cCal = c * 4;
+    const fCal = f * 9;
+    const total = pCal + cCal + fCal;
+    if (total === 0) return { p: 33.3, c: 33.3, f: 33.4 };
+    return {
+      p: (pCal / total) * 100,
+      c: (cCal / total) * 100,
+      f: (fCal / total) * 100,
+    };
+  }, [protein, carbs, fat]);
 
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteCode, setDeleteCode] = useState('');
@@ -93,238 +102,206 @@ export const SettingsScreen: React.FC = () => {
     if (deleteInput === deleteCode) {
       setDeleteModalVisible(false);
       await storage.clear();
-      showStatus('Data Cleared', 'Please restart the app for changes to take effect.');
+      showStatus('Cleared', 'All data has been reset.');
     } else {
-      showStatus('Incorrect Code', 'The code you entered does not match.', 'error');
+      showStatus('Incorrect', 'Verification code mismatch.', 'error');
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <Ionicons name="flash" size={24} color={THEME.colors.primary} />
-            <GradientText style={styles.title}>Settings</GradientText>
-          </View>
-          <Text style={styles.subtitle}>Configure your experience</Text>
+          <GradientText style={styles.title}>Settings</GradientText>
+          <Text style={styles.subtitle}>Optimize your performance baseline</Text>
         </View>
 
+        {/* Measurement Units */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="options" size={20} color={THEME.colors.primary} />
-            <Text style={styles.sectionTitle}>Measurement Units</Text>
+            <Ionicons name="options-outline" size={18} color={THEME.colors.primary} />
+            <Text style={styles.sectionTitle}>Preferences</Text>
           </View>
-          <View style={styles.card}>
-            <View style={styles.preferenceRow}>
-              <Text style={styles.preferenceLabel}>Weight</Text>
-              <View style={styles.toggleContainer}>
-                {['kg', 'lb'].map((u) => (
-                  <TouchableOpacity
-                    key={u}
-                    style={[styles.toggleBtn, currentPrefs.weight === u && styles.toggleBtnActive]}
-                    onPress={() => updatePreferences({ weight: u as any })}
-                  >
-                    <Text style={[styles.toggleText, currentPrefs.weight === u && styles.toggleTextActive]}>{u.toUpperCase()}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.preferenceRow}>
-              <Text style={styles.preferenceLabel}>Height</Text>
-              <View style={styles.toggleContainer}>
-                {['cm', 'ft'].map((u) => (
-                  <TouchableOpacity
-                    key={u}
-                    style={[styles.toggleBtn, currentPrefs.height === u && styles.toggleBtnActive]}
-                    onPress={() => updatePreferences({ height: u as any })}
-                  >
-                    <Text style={[styles.toggleText, currentPrefs.height === u && styles.toggleTextActive]}>{u.toUpperCase()}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.preferenceRow}>
-              <Text style={styles.preferenceLabel}>Body Parts</Text>
-              <View style={styles.toggleContainer}>
-                {['cm', 'inch'].map((u) => (
-                  <TouchableOpacity
-                    key={u}
-                    style={[styles.toggleBtn, currentPrefs.body === u && styles.toggleBtnActive]}
-                    onPress={() => updatePreferences({ body: u as any })}
-                  >
-                    <Text style={[styles.toggleText, currentPrefs.body === u && styles.toggleTextActive]}>{u === 'inch' ? 'IN' : 'CM'}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.preferenceRow}>
-              <Text style={styles.preferenceLabel}>Water</Text>
-              <View style={styles.toggleContainer}>
-                {['ml', 'oz'].map((u) => (
-                  <TouchableOpacity
-                    key={u}
-                    style={[styles.toggleBtn, currentPrefs.fluid === u && styles.toggleBtnActive]}
-                    onPress={() => updatePreferences({ fluid: u as any })}
-                  >
-                    <Text style={[styles.toggleText, currentPrefs.fluid === u && styles.toggleTextActive]}>{u.toUpperCase()}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
+          <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
+            {[
+                { label: 'Weight', icon: 'scale-outline', options: ['kg', 'lb'], current: currentPrefs.weight, key: 'weight' },
+                { label: 'Height', icon: 'resize-outline', options: ['cm', 'ft'], current: currentPrefs.height, key: 'height' },
+                { label: 'Body', icon: 'body-outline', options: ['cm', 'in'], current: currentPrefs.body, key: 'body' },
+                { label: 'Fluid', icon: 'water-outline', options: ['ml', 'oz'], current: currentPrefs.fluid, key: 'fluid' },
+            ].map((pref, idx) => (
+                <View key={pref.label} style={[styles.prefRow, idx > 0 && styles.prefSeparator]}>
+                   <View style={styles.prefLeft}>
+                      <View style={styles.iconCircle}>
+                        <Ionicons name={pref.icon as any} size={14} color={THEME.colors.primary} />
+                      </View>
+                      <Text style={styles.prefLabel}>{pref.label}</Text>
+                   </View>
+                   <View style={styles.segmentedControl}>
+                      {pref.options.map(opt => (
+                        <TouchableOpacity 
+                            key={opt}
+                            onPress={() => updatePreferences({ [pref.key]: opt as any })}
+                            style={[styles.segmentBtn, pref.current === opt && styles.segmentBtnActive]}
+                        >
+                            <Text style={[styles.segmentText, pref.current === opt && styles.segmentTextActive]}>{opt.toUpperCase()}</Text>
+                        </TouchableOpacity>
+                      ))}
+                   </View>
+                </View>
+            ))}
+          </LinearGradient>
         </View>
 
+        {/* Nutrition Core Priorities */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="restaurant" size={20} color={THEME.colors.primary} />
-            <Text style={styles.sectionTitle}>Nutrition Targets</Text>
+            <Ionicons name="flame-outline" size={18} color={THEME.colors.primary} />
+            <Text style={styles.sectionTitle}>Main Goals</Text>
           </View>
-          <View style={styles.card}>
-            <View style={styles.inputRow}>
-              <Text style={styles.inputLabel}>Calories (kcal)</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={calGoal} onChangeText={setCalGoal} />
-            </View>
-            <View style={styles.inputRow}>
-              <Text style={styles.inputLabel}>Protein (g)</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={protein} onChangeText={setProtein} />
-            </View>
-            <View style={styles.inputRow}>
-              <Text style={styles.inputLabel}>Carbs (g)</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={carbs} onChangeText={setCarbs} />
-            </View>
-            <View style={styles.inputRow}>
-              <Text style={styles.inputLabel}>Fat (g)</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={fat} onChangeText={setFat} />
-            </View>
-            <View style={styles.inputRow}>
-              <Text style={styles.inputLabel}>Water (ml)</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={waterGoal} onChangeText={setWGoal} />
-            </View>
-            <View style={styles.inputRow}>
-              <Text style={styles.inputLabel}>Target Weight ({metrics.preferences.weight})</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={targetWeightValue} onChangeText={setTargetWeightValue} />
-            </View>
-            <Button title="Save Targets" onPress={handleSaveTargets} disabled={isLoading} />
-          </View>
+          <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
+                {[
+                    { label: 'Calorie Goal', val: calGoal, set: setCalGoal, sub: 'KCAL', icon: 'flash', color: '#10B981' },
+                    { label: 'Hydration Goal', val: waterGoal, set: setWGoal, sub: 'ML', icon: 'water', color: '#3B82F6' },
+                    { label: 'Weight Goal', val: targetWeightValue, set: setTargetWeightValue, sub: metrics.preferences.weight.toUpperCase(), icon: 'trophy', color: '#F59E0B' },
+                ].map((item, idx) => (
+                    <View key={item.label} style={[styles.priorityRow, idx > 0 && styles.prefSeparator]}>
+                        <View style={styles.prefLeft}>
+                            <View style={[styles.iconCircle, { backgroundColor: `${item.color}15` }]}>
+                                <Ionicons name={item.icon as any} size={16} color={item.color} />
+                            </View>
+                            <Text style={styles.prefLabel} numberOfLines={1}>{item.label}</Text>
+                        </View>
+                        <View style={styles.inputWrapper}>
+                            <TextInput 
+                                style={styles.priorityInput} 
+                                keyboardType="numeric" 
+                                value={item.val} 
+                                onChangeText={item.set}
+                                selectTextOnFocus
+                            />
+                            <Text style={styles.inputSub}>{item.sub}</Text>
+                        </View>
+                    </View>
+                ))}
+          </LinearGradient>
         </View>
 
+        {/* Macro Composition */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="information-circle" size={20} color={THEME.colors.primary} />
-            <Text style={styles.sectionTitle}>App Info</Text>
+            <Ionicons name="pie-chart-outline" size={18} color={THEME.colors.primary} />
+            <Text style={styles.sectionTitle}>Macro Split</Text>
           </View>
-          <View style={styles.card}>
-            <Text style={styles.infoText}>Anabolic v1.0</Text>
-            <Button 
-              title={isChecking ? "Checking..." : "Check for Updates"} 
-              variant="outline" 
-              onPress={checkForUpdates} 
-              disabled={isChecking || isLoading}
-              style={{ marginTop: 12 }}
-            />
-          </View>
+          <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
+            
+            {/* Macro Gauge */}
+            <View style={styles.gaugeContainer}>
+                <View style={styles.gaugeBar}>
+                    <View style={[styles.gaugeSegment, { width: `${macroSplit.p}%`, backgroundColor: '#3B82F6' }]} />
+                    <View style={[styles.gaugeSegment, { width: `${macroSplit.c}%`, backgroundColor: '#FCD34D' }]} />
+                    <View style={[styles.gaugeSegment, { width: `${macroSplit.f}%`, backgroundColor: '#EF4444' }]} />
+                </View>
+                <View style={styles.gaugeLabels}>
+                    <Text style={[styles.gaugeLabelText, { color: '#3B82F6' }]}>{Math.round(macroSplit.p)}% PRO</Text>
+                    <Text style={[styles.gaugeLabelText, { color: '#FCD34D' }]}>{Math.round(macroSplit.c)}% CHO</Text>
+                    <Text style={[styles.gaugeLabelText, { color: '#EF4444' }]}>{Math.round(macroSplit.f)}% FAT</Text>
+                </View>
+            </View>
+
+            {[
+                { label: 'Protein', val: protein, set: setProtein, color: '#3B82F6', icon: 'fitness' },
+                { label: 'Carbs', val: carbs, set: setCarbs, color: '#FCD34D', icon: 'leaf' },
+                { label: 'Fats', val: fat, set: setFat, color: '#EF4444', icon: 'pizza' },
+            ].map((item, idx) => (
+                <View key={item.label} style={[styles.macroRow, idx > 0 && styles.prefSeparator]}>
+                    <View style={styles.prefLeft}>
+                        <View style={[styles.iconCircle, { backgroundColor: `${item.color}15` }]}>
+                            <Ionicons name={item.icon as any} size={16} color={item.color} />
+                        </View>
+                        <Text style={styles.prefLabel}>{item.label}</Text>
+                    </View>
+                    <View style={styles.macroInputWrapper}>
+                        <TextInput 
+                            style={[styles.macroInput, { color: item.color }]} 
+                            keyboardType="numeric" 
+                            value={item.val} 
+                            onChangeText={item.set}
+                            selectTextOnFocus
+                        />
+                        <Text style={styles.inputSub}>G</Text>
+                    </View>
+                </View>
+            ))}
+            <Button title="Save Everything" onPress={handleSaveTargets} disabled={isLoading} style={{ marginTop: 16 }} />
+          </LinearGradient>
         </View>
 
-        {/* Developer Options Hidden */}
-        {/*
+        {/* App Info & Danger */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Developer Options</Text>
-          <View style={[styles.card, styles.devCard]}>
-            <Text style={styles.cardText}>Populate local storage with 30 days of randomized realistic data for testing Analytics.</Text>
-            <Button
-              title="Simulate 30-Day Data"
-              variant="outline"
-              onPress={async () => {
-                await simulateData();
-                showStatus('Simulation Complete', 'Charts have been updated.');
-              }}
-              disabled={isLoading}
-            />
-          </View>
+            <View style={styles.sectionHeader}>
+                <Ionicons name="information-circle-outline" size={18} color={THEME.colors.primary} />
+                <Text style={styles.sectionTitle}>Details</Text>
+            </View>
+            <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
+                <View style={[styles.infoRow, { paddingBottom: 14 }]}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.infoTitle}>Anabolic PRO</Text>
+                        <Text style={styles.infoVersion}>v1.0.5 Platinum</Text>
+                    </View>
+                    <TouchableOpacity onPress={checkForUpdates} disabled={isChecking} style={styles.updateBadge}>
+                        <Text style={styles.updateBadgeText}>{isChecking ? '...' : 'Check'}</Text>
+                    </TouchableOpacity>
+                </View>
+                <View style={[styles.prefSeparator, { paddingTop: 14 }]}>
+                    <TouchableOpacity onPress={initiateClearData} style={styles.dangerAction}>
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        <Text style={styles.dangerActionText}>Purge All Data</Text>
+                    </TouchableOpacity>
+                </View>
+            </LinearGradient>
         </View>
-        */}
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="warning" size={20} color="#EF4444" />
-            <Text style={[styles.sectionTitle, { color: '#EF4444' }]}>Danger Zone</Text>
-          </View>
-          <View style={[styles.card, styles.dangerCard]}>
-            <Text style={styles.cardText}>Delete all local tracking data and user preferences. This action cannot be undone.</Text>
-            <Button
-              title="Clear All Data"
-              variant="danger"
-              onPress={initiateClearData}
-              disabled={isLoading}
-            />
-          </View>
-        </View>
-
       </ScrollView>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        visible={isDeleteModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDeleteModalVisible(false)}
-      >
+      {/* Verification Modal */}
+      <Modal visible={isDeleteModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { borderColor: '#EF4444' }]}>
-            <Text style={styles.modalTitle}>Confirm Deletion</Text>
-            <Text style={styles.modalText}>
-              To verify you want to delete all data, please type the following randomly generated 4-digit code:
-            </Text>
-            <Text style={styles.codeDisplay}>{deleteCode}</Text>
-            
+          <View style={styles.modalContent}>
+            <View style={styles.dangerIconContainer}>
+                <Ionicons name="warning-outline" size={28} color="#EF4444" />
+            </View>
+            <Text style={styles.modalTitle}>Confirm Data Wipe</Text>
+            <Text style={styles.modalText}>This cannot be undone. Enter code below:</Text>
+            <Text style={styles.codeText}>{deleteCode}</Text>
             <TextInput
               style={styles.codeInput}
               keyboardType="number-pad"
               maxLength={4}
               value={deleteInput}
               onChangeText={setDeleteInput}
-              placeholder="0000"
-              placeholderTextColor="rgba(255,255,255,0.2)"
               autoFocus
             />
-
             <View style={styles.modalActions}>
-              <Button title="Cancel" variant="outline" onPress={() => setDeleteModalVisible(false)} style={{ flex: 1 }} />
-              <View style={{ width: THEME.spacing.md }} />
-              <Button title="Delete" variant="danger" onPress={confirmClearData} style={{ flex: 1 }} />
+              <Button title="Back" variant="outline" onPress={() => setDeleteModalVisible(false)} style={{ flex: 1 }} />
+              <View style={{ width: 10 }} />
+              <Button title="Wipe" variant="danger" onPress={confirmClearData} style={{ flex: 1 }} />
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Generic Status Modal */}
-      <Modal
-        visible={statusModal.visible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStatusModal({ ...statusModal, visible: false })}
-      >
+      {/* Status Modal */}
+      <Modal visible={statusModal.visible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.statusContent}>
-            <View style={[styles.statusIcon, { backgroundColor: statusModal.type === 'success' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(239, 68, 68, 0.1)' }]}>
-              <Ionicons 
-                name={statusModal.type === 'success' ? 'checkmark-circle' : 'alert-circle'} 
-                size={48} 
-                color={statusModal.type === 'success' ? THEME.colors.primary : '#EF4444'} 
-              />
+            <View style={styles.statusBox}>
+                <Ionicons 
+                    name={statusModal.type === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'} 
+                    size={48} 
+                    color={statusModal.type === 'success' ? THEME.colors.primary : '#EF4444'} 
+                />
+                <Text style={styles.statusTitle}>{statusModal.title}</Text>
+                <Text style={styles.statusMsg}>{statusModal.message}</Text>
+                <Button title="Dismiss" onPress={() => setStatusModal({ ...statusModal, visible: false })} style={{ width: '100%' }} />
             </View>
-            <Text style={[styles.modalTitle, { color: statusModal.type === 'success' ? THEME.colors.text : '#EF4444' }]}>{statusModal.title}</Text>
-            <Text style={styles.modalText}>{statusModal.message}</Text>
-            <Button 
-              title="OK" 
-              onPress={() => setStatusModal({ ...statusModal, visible: false })} 
-              style={{ width: '100%' }} 
-            />
-          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -337,195 +314,292 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.background,
   },
   scrollContent: {
-    padding: THEME.spacing.lg,
+    padding: THEME.spacing.md,
     paddingBottom: 100,
   },
   header: {
-    marginBottom: THEME.spacing.xl,
     marginTop: THEME.spacing.md,
+    marginBottom: THEME.spacing.lg,
+    paddingHorizontal: 4,
   },
   title: {
     fontFamily: THEME.typography.black,
-    fontSize: 28,
-    color: THEME.colors.text,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
+    fontSize: 32,
+    letterSpacing: -1,
   },
   subtitle: {
     fontFamily: THEME.typography.medium,
-    fontSize: 16,
     color: THEME.colors.textSecondary,
+    fontSize: 13,
+    marginTop: 1,
   },
   section: {
-    marginBottom: THEME.spacing.xl,
+    marginBottom: THEME.spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: THEME.spacing.sm,
-    marginBottom: THEME.spacing.md,
+    gap: 8,
+    marginBottom: THEME.spacing.sm,
+    paddingHorizontal: 8,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 13,
     fontFamily: THEME.typography.black,
     color: THEME.colors.text,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: THEME.spacing.sm,
-  },
-  card: {
-    backgroundColor: THEME.colors.surface,
-    padding: THEME.spacing.lg,
+  premiumCard: {
     borderRadius: THEME.roundness.lg,
+    padding: THEME.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  cardText: {
-    fontFamily: THEME.typography.regular,
-    color: THEME.colors.textSecondary,
+  prefRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  prefSeparator: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.03)',
+  },
+  prefLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginRight: 10,
+  },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  prefLabel: {
+    flex: 1,
+    fontFamily: THEME.typography.semiBold,
+    color: THEME.colors.text,
     fontSize: 14,
-    marginBottom: THEME.spacing.lg,
-    lineHeight: 20,
   },
-  inputRow: {
+  segmentedControl: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: THEME.spacing.md,
-  },
-  inputLabel: {
-    fontFamily: THEME.typography.semiBold,
-    color: THEME.colors.text,
-    fontSize: 16,
-  },
-  input: {
-    backgroundColor: THEME.colors.surfaceSecondary,
-    color: THEME.colors.text,
-    fontFamily: THEME.typography.bold,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: THEME.roundness.md,
-    width: 100,
-    textAlign: 'center',
-  },
-  infoText: {
-    fontFamily: THEME.typography.semiBold,
-    color: THEME.colors.text,
-    fontSize: 16,
-    marginBottom: THEME.spacing.xs,
-  },
-  devCard: {
-    borderColor: THEME.colors.primary,
-    borderStyle: 'dashed',
-    borderWidth: 2,
-  },
-  preferenceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: THEME.spacing.md,
-  },
-  preferenceLabel: {
-    fontFamily: THEME.typography.semiBold,
-    color: THEME.colors.text,
-    fontSize: 16,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: THEME.colors.surfaceSecondary,
+    backgroundColor: 'rgba(0,0,0,0.2)',
     borderRadius: THEME.roundness.md,
     padding: 2,
+    minWidth: 100,
   },
-  toggleBtn: {
-    paddingHorizontal: 12,
+  segmentBtn: {
+    flex: 1,
     paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: THEME.roundness.sm,
+    alignItems: 'center',
   },
-  toggleBtnActive: {
+  segmentBtnActive: {
     backgroundColor: THEME.colors.primary,
   },
-  toggleText: {
+  segmentText: {
     fontFamily: THEME.typography.bold,
+    color: THEME.colors.textSecondary,
+    fontSize: 10,
+  },
+  segmentTextActive: {
+    color: THEME.colors.background,
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 80,
+    justifyContent: 'flex-end',
+  },
+  priorityInput: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.text,
+    fontSize: 20,
+    textAlign: 'right',
+  },
+  inputSub: {
+    fontFamily: THEME.typography.bold,
+    color: THEME.colors.textSecondary,
+    fontSize: 11,
+    opacity: 0.4,
+  },
+  gaugeContainer: {
+    marginBottom: 20,
+    marginTop: 2,
+  },
+  gaugeBar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    flexDirection: 'row',
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  gaugeSegment: {
+    height: '100%',
+  },
+  gaugeLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  gaugeLabelText: {
+    fontFamily: THEME.typography.black,
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  macroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  macroInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 70,
+    justifyContent: 'flex-end',
+  },
+  macroInput: {
+    fontFamily: THEME.typography.black,
+    fontSize: 22,
+    textAlign: 'right',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoTitle: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.text,
+    fontSize: 16,
+  },
+  infoVersion: {
+    fontFamily: THEME.typography.medium,
     color: THEME.colors.textSecondary,
     fontSize: 12,
   },
-  toggleTextActive: {
-    color: THEME.colors.background,
-  },
-  dangerCard: {
-    borderColor: '#EF4444',
+  updateBadge: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: THEME.roundness.full,
     borderWidth: 1,
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  updateBadgeText: {
+    fontFamily: THEME.typography.bold,
+    color: THEME.colors.primary,
+    fontSize: 11,
+  },
+  dangerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  dangerActionText: {
+    fontFamily: THEME.typography.bold,
+    color: '#EF4444',
+    fontSize: 13,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: THEME.spacing.xl,
+    padding: THEME.spacing.lg,
   },
   modalContent: {
     backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.roundness.lg,
-    padding: THEME.spacing.xl,
+    borderRadius: 24,
+    padding: 24,
     width: '100%',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  dangerIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   modalTitle: {
     fontFamily: THEME.typography.black,
-    color: '#EF4444',
-    fontSize: 24,
-    marginBottom: THEME.spacing.md,
+    color: THEME.colors.text,
+    fontSize: 22,
+    marginBottom: 4,
   },
   modalText: {
     fontFamily: THEME.typography.medium,
     color: THEME.colors.textSecondary,
     fontSize: 14,
     textAlign: 'center',
-    marginBottom: THEME.spacing.lg,
     lineHeight: 20,
+    marginBottom: 20,
   },
-  codeDisplay: {
+  codeText: {
     fontFamily: THEME.typography.black,
-    color: THEME.colors.text,
-    fontSize: 32,
-    letterSpacing: 8,
-    marginBottom: THEME.spacing.lg,
+    color: THEME.colors.primary,
+    fontSize: 40,
+    letterSpacing: 10,
+    marginBottom: 20,
   },
   codeInput: {
-    backgroundColor: THEME.colors.surfaceSecondary,
-    color: THEME.colors.text,
-    fontFamily: THEME.typography.bold,
-    fontSize: 24,
-    padding: THEME.spacing.md,
-    borderRadius: THEME.roundness.md,
+    backgroundColor: 'rgba(255,255,255,0.04)',
     width: '60%',
     textAlign: 'center',
-    letterSpacing: 4,
-    marginBottom: THEME.spacing.xl,
+    fontSize: 28,
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.text,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 24,
   },
   modalActions: {
     flexDirection: 'row',
-    width: '100%',
   },
-  statusContent: {
+  statusBox: {
     backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.roundness.lg,
-    padding: THEME.spacing.xl,
     width: '85%',
+    padding: 30,
+    borderRadius: 30,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
   },
-  statusIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: THEME.spacing.md,
+  statusTitle: {
+    fontFamily: THEME.typography.black,
+    fontSize: 24,
+    color: THEME.colors.text,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  statusMsg: {
+    fontFamily: THEME.typography.medium,
+    color: THEME.colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
   },
 });

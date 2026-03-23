@@ -15,7 +15,7 @@ interface CalorieTrackerProps {
   date?: Date;
 }
 
-export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({ 
+export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({
   onCenterPress,
   current = 0,
   goal = 2500,
@@ -24,20 +24,20 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({
   date = new Date()
 }) => {
   const { metrics } = useMetrics();
-  
+
   const percentage = useMemo(() => (current / goal) * 100, [current, goal]);
   const remaining = useMemo(() => Math.max(goal - current, 0), [goal, current]);
 
   const waterPercentage = useMemo(() => (waterCurrent / waterGoal) * 100, [waterCurrent, waterGoal]);
   const fluidUnit = metrics.preferences.fluid;
-  
-  const size = useMemo(() => Dimensions.get('window').width - THEME.spacing.xl * 2, []); 
+
+  const size = useMemo(() => Dimensions.get('window').width - THEME.spacing.xl * 2, []);
   const strokeWidth = 14;
   const center = size / 2;
   const radius = center - strokeWidth;
   const circumference = useMemo(() => 2 * Math.PI * radius, [radius]);
   const strokeDashoffset = useMemo(() => circumference - (Math.min(percentage, 100) / 100) * circumference, [circumference, percentage]);
-  
+
   const progressColor = useMemo(() => percentage >= 100 ? THEME.colors.error : THEME.colors.primary, [percentage]);
 
   return (
@@ -84,13 +84,13 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({
         <Text style={styles.statsText}>{current} • {Math.round(percentage)}%</Text>
         <Text style={styles.statsTextMuted}>Remaining: {remaining}</Text>
       </View>
-      
+
       <View style={styles.progressBackground}>
-        <View 
+        <View
           style={[
-            styles.progressFill, 
+            styles.progressFill,
             { width: `${Math.min(percentage, 100)}%`, backgroundColor: progressColor }
-          ]} 
+          ]}
         />
       </View>
 
@@ -101,11 +101,11 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({
           <Text style={styles.statsTextMuted}>{Math.round(waterPercentage)}%</Text>
         </View>
         <View style={styles.progressBackground}>
-          <View 
+          <View
             style={[
-              styles.progressFill, 
-              { width: `${Math.min(waterPercentage, 100)}%`, backgroundColor: '#3B82F6' } 
-            ]} 
+              styles.progressFill,
+              { width: `${Math.min(waterPercentage, 100)}%`, backgroundColor: '#3B82F6' }
+            ]}
           />
         </View>
       </View>
