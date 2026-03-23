@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +15,7 @@ interface CalorieTrackerProps {
   date?: Date;
 }
 
-export const CalorieTracker: React.FC<CalorieTrackerProps> = ({ 
+export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({ 
   onCenterPress,
   current = 0,
   goal = 2500,
@@ -25,21 +25,20 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = ({
 }) => {
   const { metrics } = useMetrics();
   
-  const percentage = (current / goal) * 100;
-  const remaining = Math.max(goal - current, 0);
+  const percentage = useMemo(() => (current / goal) * 100, [current, goal]);
+  const remaining = useMemo(() => Math.max(goal - current, 0), [goal, current]);
 
-  const waterPercentage = (waterCurrent / waterGoal) * 100;
+  const waterPercentage = useMemo(() => (waterCurrent / waterGoal) * 100, [waterCurrent, waterGoal]);
   const fluidUnit = metrics.preferences.fluid;
   
-  const size = Dimensions.get('window').width - THEME.spacing.xl * 2; 
+  const size = useMemo(() => Dimensions.get('window').width - THEME.spacing.xl * 2, []); 
   const strokeWidth = 14;
   const center = size / 2;
   const radius = center - strokeWidth;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (Math.min(percentage, 100) / 100) * circumference;
+  const circumference = useMemo(() => 2 * Math.PI * radius, [radius]);
+  const strokeDashoffset = useMemo(() => circumference - (Math.min(percentage, 100) / 100) * circumference, [circumference, percentage]);
   
-  let progressColor = THEME.colors.primary;
-  if (percentage >= 100) progressColor = THEME.colors.error;
+  const progressColor = useMemo(() => percentage >= 100 ? THEME.colors.error : THEME.colors.primary, [percentage]);
 
   return (
     <View style={styles.container}>
@@ -112,28 +111,12 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = ({
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
     paddingBottom: THEME.spacing.md,
     paddingTop: 0,
-  },
-  header: {
-    marginBottom: THEME.spacing.xs,
-    paddingHorizontal: THEME.spacing.sm,
-  },
-  title: {
-    color: THEME.colors.text,
-    fontSize: 24,
-    fontFamily: THEME.typography.black,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    color: THEME.colors.textSecondary,
-    fontSize: 14,
-    fontFamily: THEME.typography.semiBold,
-    marginTop: 2,
   },
   svgContainerWrapper: {
     alignItems: 'center',

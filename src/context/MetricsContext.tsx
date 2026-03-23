@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { UserMetrics, MetricLog, BodyMeasurementLog, UnitPreferences, MealLog, LogType } from '../types/metrics';
 import { storage, STORAGE_KEYS } from '../services/storage';
 
@@ -74,7 +74,6 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [logDate, setLogDate] = useState<Date | undefined>();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  
   useEffect(() => {
     const loadMetrics = async () => {
       const savedMetrics = await storage.getItem<UserMetrics>(STORAGE_KEYS.USER_METRICS);
@@ -82,19 +81,6 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setMetrics({
           ...DEFAULT_METRICS,
           ...savedMetrics,
-          hasCompletedOnboarding: savedMetrics.hasCompletedOnboarding ?? false,
-          goal: savedMetrics.goal || DEFAULT_METRICS.goal,
-          age: savedMetrics.age || DEFAULT_METRICS.age,
-          gender: savedMetrics.gender || DEFAULT_METRICS.gender,
-          progressPhotos: savedMetrics.progressPhotos || [],
-          meals: savedMetrics.meals || [],
-          heightHistory: savedMetrics.heightHistory || [],
-          weightHistory: savedMetrics.weightHistory || [],
-          bodyMeasurements: savedMetrics.bodyMeasurements || [],
-          waterHistory: savedMetrics.waterHistory || [],
-          macroTargets: savedMetrics.macroTargets || DEFAULT_METRICS.macroTargets,
-          waterGoal: savedMetrics.waterGoal || DEFAULT_METRICS.waterGoal,
-          currentWater: savedMetrics.currentWater || DEFAULT_METRICS.currentWater,
           preferences: {
             ...DEFAULT_METRICS.preferences,
             ...(savedMetrics.preferences || {}),
@@ -106,14 +92,13 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     loadMetrics();
   }, []);
 
-  
   useEffect(() => {
     if (!isLoading) {
       storage.setItem(STORAGE_KEYS.USER_METRICS, metrics);
     }
   }, [metrics, isLoading]);
 
-  const updateHeight = async (height: number) => {
+  const updateHeight = useCallback(async (height: number) => {
     setMetrics((prev) => {
       const newLog: MetricLog = {
         id: Math.random().toString(36).substring(7),
@@ -127,9 +112,9 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         heightHistory: [newLog, ...(prev.heightHistory || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       };
     });
-  };
+  }, []);
 
-  const addWeightLog = async (value: number, unit = 'kg', date?: string) => {
+  const addWeightLog = useCallback(async (value: number, unit = 'kg', date?: string) => {
     const newLog: MetricLog = {
       id: Math.random().toString(36).substring(7),
       value,
@@ -140,9 +125,9 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...prev,
       weightHistory: [newLog, ...prev.weightHistory].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     }));
-  };
+  }, []);
 
-  const addBodyMeasurement = async (part: string, value: number, unit = 'cm', date?: string) => {
+  const addBodyMeasurement = useCallback(async (part: string, value: number, unit = 'cm', date?: string) => {
     const newLog: BodyMeasurementLog = {
       id: Math.random().toString(36).substring(7),
       part,
@@ -154,25 +139,25 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...prev,
       bodyMeasurements: [newLog, ...prev.bodyMeasurements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     }));
-  };
+  }, []);
 
-  const updateCalories = async (calories: number) => {
+  const updateCalories = useCallback(async (calories: number) => {
     setMetrics((prev) => ({ ...prev, calories }));
-  };
+  }, []);
 
-  const setCalorieGoal = async (goal: number) => {
+  const setCalorieGoal = useCallback(async (goal: number) => {
     setMetrics((prev) => ({ ...prev, calorieGoal: goal }));
-  };
+  }, []);
 
-  const setWaterGoal = async (goal: number) => {
+  const setWaterGoal = useCallback(async (goal: number) => {
     setMetrics((prev) => ({ ...prev, waterGoal: goal }));
-  };
+  }, []);
 
-  const setTargetWeight = async (weight: number) => {
+  const setTargetWeight = useCallback(async (weight: number) => {
     setMetrics((prev) => ({ ...prev, targetWeight: weight }));
-  };
+  }, []);
 
-  const updateWater = async (current: number, date?: string) => {
+  const updateWater = useCallback(async (current: number, date?: string) => {
     const targetDate = date ? new Date(date) : new Date();
     const dateKey = targetDate.toISOString().split('T')[0];
     const isToday = dateKey === new Date().toISOString().split('T')[0];
@@ -200,28 +185,28 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         waterHistory: existingHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       };
     });
-  };
+  }, []);
 
-  const updateMacros = async (macros: { protein: number; carbs: number; fat: number }) => {
+  const updateMacros = useCallback(async (macros: { protein: number; carbs: number; fat: number }) => {
     setMetrics((prev) => ({ ...prev, macroTargets: macros }));
-  };
+  }, []);
 
-  const updatePreferences = async (newPrefs: Partial<UnitPreferences>) => {
+  const updatePreferences = useCallback(async (newPrefs: Partial<UnitPreferences>) => {
     setMetrics((prev) => ({ 
       ...prev, 
       preferences: { ...prev.preferences, ...newPrefs } 
     }));
-  };
+  }, []);
 
-  const updateAge = async (age: number) => {
+  const updateAge = useCallback(async (age: number) => {
     setMetrics((prev) => ({ ...prev, age }));
-  };
+  }, []);
 
-  const updateGender = async (gender: 'male' | 'female') => {
+  const updateGender = useCallback(async (gender: 'male' | 'female') => {
     setMetrics((prev) => ({ ...prev, gender }));
-  };
+  }, []);
 
-  const addProgressPhoto = async (uri: string, date: string) => {
+  const addProgressPhoto = useCallback(async (uri: string, date: string) => {
     const newPhoto = {
       id: Math.random().toString(36).substring(7),
       uri,
@@ -231,16 +216,16 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...prev,
       progressPhotos: [newPhoto, ...prev.progressPhotos].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     }));
-  };
+  }, []);
 
-  const deleteProgressPhoto = async (id: string) => {
+  const deleteProgressPhoto = useCallback(async (id: string) => {
     setMetrics((prev) => ({
       ...prev,
       progressPhotos: (prev.progressPhotos || []).filter((p) => p.id !== id),
     }));
-  };
+  }, []);
 
-  const addMealEntry = async (name: string, calories: number, date?: string, foodName?: string, macros?: { protein: number, carbs: number, fat: number }) => {
+  const addMealEntry = useCallback(async (name: string, calories: number, date?: string, foodName?: string, macros?: { protein: number, carbs: number, fat: number }) => {
     const targetDate = date ? new Date(date) : new Date();
     const isToday = targetDate.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
 
@@ -257,23 +242,22 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...(isToday && { calories: (prev.calories || 0) + calories }),
       meals: [newMeal, ...(prev.meals || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     }));
-  };
+  }, []);
 
-  const completeOnboarding = async (data: Partial<UserMetrics>) => {
+  const completeOnboarding = useCallback(async (data: Partial<UserMetrics>) => {
     setMetrics((prev) => ({
       ...prev,
       ...data,
       hasCompletedOnboarding: true,
     }));
-  };
+  }, []);
 
-  const simulateData = async () => {
+  const simulateData = useCallback(async () => {
     const mockWeightHistory: MetricLog[] = [];
     const mockBodyMeasurements: BodyMeasurementLog[] = [];
     const mockWaterHistory: MetricLog[] = [];
     const mockMeals: MealLog[] = [];
     const mockHeightHistory: MetricLog[] = [];
-    
     
     let currentWeight = 80; 
     const now = new Date();
@@ -282,8 +266,6 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const date = new Date(now);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString();
-      
-      
       currentWeight = currentWeight - (Math.random() * 0.2) + (Math.random() * 0.1);
       
       mockWeightHistory.push({
@@ -314,7 +296,6 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         date: dateStr,
       });
 
-      
       if (i % 5 === 0) {
         mockBodyMeasurements.push({
           id: Math.random().toString(36).substring(7),
@@ -336,9 +317,9 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       calories: Math.floor(Math.random() * 500) + 2000,
       height: 180,
     }));
-  };
+  }, []);
 
-  const openLogModal = (type?: LogType, subType?: string, date?: Date) => {
+  const openLogModal = useCallback((type?: LogType, subType?: string, date?: Date) => {
     const validTypes: LogType[] = ['weight', 'body', 'height', 'calories', 'water'];
     if (type && validTypes.includes(type)) {
       setLogType(type);
@@ -349,59 +330,67 @@ export const MetricsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     setLogDate(date);
     setIsLogModalVisible(true);
-  };
-  const closeLogModal = () => {
+  }, []);
+
+  const closeLogModal = useCallback(() => {
     setIsLogModalVisible(false);
     setLogSubType(undefined);
-  };
+  }, []);
 
-  const bmi = metrics.height && metrics.weightHistory.length > 0 
+  const bmi = useMemo(() => metrics.height && metrics.weightHistory.length > 0 
     ? (metrics.weightHistory[0].value / Math.pow(metrics.height / 100, 2)).toFixed(1)
-    : '--';
+    : '--', [metrics.height, metrics.weightHistory]);
     
-  const bmr = metrics.height && metrics.weightHistory.length > 0
+  const bmr = useMemo(() => metrics.height && metrics.weightHistory.length > 0
     ? Math.round(
         10 * metrics.weightHistory[0].value + 
         6.25 * metrics.height - 
         5 * (metrics.age || 25) + 
         (metrics.gender === 'male' ? 5 : -161)
       ).toString()
-    : '--';
+    : '--', [metrics.height, metrics.weightHistory, metrics.age, metrics.gender]);
+
+  const value = useMemo(() => ({
+    metrics,
+    updateHeight,
+    addWeightLog,
+    addBodyMeasurement,
+    updateCalories,
+    setCalorieGoal,
+    setTargetWeight,
+    setWaterGoal,
+    updateWater,
+    updateMacros,
+    updatePreferences,
+    updateAge,
+    updateGender,
+    addProgressPhoto,
+    addMealEntry,
+    completeOnboarding,
+    simulateData,
+    isLoading,
+    bmi,
+    bmr,
+    isLogModalVisible,
+    logType,
+    logSubType,
+    logDate,
+    selectedDate,
+    setSelectedDate,
+    openLogModal,
+    closeLogModal,
+    deleteProgressPhoto,
+  }), [
+    metrics, updateHeight, addWeightLog, addBodyMeasurement, updateCalories, 
+    setCalorieGoal, setTargetWeight, setWaterGoal, updateWater, updateMacros, 
+    updatePreferences, updateAge, updateGender, addProgressPhoto, addMealEntry, 
+    completeOnboarding, simulateData, isLoading, bmi, bmr, isLogModalVisible, 
+    logType, logSubType, logDate, selectedDate, openLogModal, closeLogModal, 
+    deleteProgressPhoto
+  ]);
 
   return (
-    <MetricsContext.Provider
-      value={{
-        metrics,
-        updateHeight,
-        addWeightLog,
-        addBodyMeasurement,
-        updateCalories,
-        setCalorieGoal,
-        setTargetWeight,
-        setWaterGoal,
-        updateWater,
-        updateMacros,
-        updatePreferences,
-        updateAge,
-        updateGender,
-        addProgressPhoto,
-        addMealEntry,
-        completeOnboarding,
-        simulateData,
-        isLoading,
-        bmi,
-        bmr,
-        isLogModalVisible,
-        logType,
-        logSubType,
-        logDate,
-        selectedDate,
-        setSelectedDate,
-        openLogModal,
-        closeLogModal,
-        deleteProgressPhoto,
-      }}
-    >
+    <MetricsContext.Provider value={value}>
       {children}
     </MetricsContext.Provider>
   );

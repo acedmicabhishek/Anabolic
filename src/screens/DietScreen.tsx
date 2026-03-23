@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import { THEME } from '../constants/theme';
 import { CalorieTracker } from '../components/molecules/CalorieTracker';
@@ -23,39 +23,39 @@ export const DietScreen: React.FC = () => {
   const [scannerMeal, setScannerMeal] = useState('Snacks');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const onDateChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
+  const onDateChange = useCallback((event: DateTimePickerEvent, selectedDateValue?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDateValue) {
       setSelectedDate(selectedDateValue);
     }
-  };
+  }, [setSelectedDate]);
 
-  const openScanner = (mealName: string) => {
+  const openScanner = useCallback((mealName: string) => {
     setScannerMeal(mealName);
     setScannerVisible(true);
-  };
+  }, []);
 
-  const isSameDay = (date1: string | Date, date2: string | Date) => {
+  const isSameDay = useCallback((date1: string | Date, date2: string | Date) => {
     const d1 = new Date(date1);
     const d2 = new Date(date2);
     return d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
-  };
+  }, []);
 
-  const getCaloriesForMeal = (mealName: string) => {
+  const caloriesForDay = useMemo(() => (metrics.meals || [])
+    .filter(m => isSameDay(m.date, selectedDate))
+    .reduce((sum, m) => sum + m.calories, 0), [metrics.meals, isSameDay, selectedDate]);
+
+  const waterForDay = useMemo(() => (metrics.waterHistory || [])
+    .filter(w => isSameDay(w.date, selectedDate))
+    .reduce((sum, w) => sum + w.value, 0), [metrics.waterHistory, isSameDay, selectedDate]);
+
+  const getCaloriesForMeal = useCallback((mealName: string) => {
     return (metrics.meals || [])
       .filter((m) => m.name === mealName && isSameDay(m.date, selectedDate))
       .reduce((sum, m) => sum + m.calories, 0);
-  };
+  }, [metrics.meals, isSameDay, selectedDate]);
 
-  const caloriesForDay = (metrics.meals || [])
-    .filter(m => isSameDay(m.date, selectedDate))
-    .reduce((sum, m) => sum + m.calories, 0);
-
-  const waterForDay = (metrics.waterHistory || [])
-    .filter(w => isSameDay(w.date, selectedDate))
-    .reduce((sum, w) => sum + w.value, 0);
-
-  const isSelectedToday = isSameDay(selectedDate, new Date());
+  const isSelectedToday = useMemo(() => isSameDay(selectedDate, new Date()), [isSameDay, selectedDate]);
   
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -166,33 +166,6 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: THEME.spacing.md,
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: THEME.spacing.xs,
-  },
-  dateNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: THEME.colors.surface,
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  navBtn: {
-    padding: 2,
-  },
-  navDateText: {
-    fontFamily: THEME.typography.bold,
-    color: THEME.colors.text,
-    fontSize: 14,
-    minWidth: 60,
-    textAlign: 'center',
-  },
   title: {
     fontSize: 28,
     fontFamily: THEME.typography.black,
@@ -218,11 +191,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: THEME.colors.primary,
     textTransform: 'uppercase',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: THEME.colors.textSecondary,
-    marginTop: 4,
   },
   sectionHeader: {
     flexDirection: 'row',

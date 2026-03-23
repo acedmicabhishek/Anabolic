@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Modal } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,12 +6,12 @@ import { THEME } from '../../constants/theme';
 import { useMetrics } from '../../context/MetricsContext';
 import { Button } from '../atoms/Button';
 
-export const ProgressGallery: React.FC = () => {
+export const ProgressGallery: React.FC = React.memo(() => {
   const { metrics, addProgressPhoto, deleteProgressPhoto } = useMetrics();
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const pickImage = async () => {
+  const pickImage = useCallback(async () => {
     try {
       setLoading(true);
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -35,12 +35,19 @@ export const ProgressGallery: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addProgressPhoto]);
 
-  const formatDate = (isoString: string) => {
+  const formatDate = useCallback((isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (deleteId) {
+      await deleteProgressPhoto(deleteId);
+      setDeleteId(null);
+    }
+  }, [deleteId, deleteProgressPhoto]);
 
   return (
     <View style={styles.container}>
@@ -97,12 +104,7 @@ export const ProgressGallery: React.FC = () => {
               <Button 
                 title="Delete" 
                 variant="danger" 
-                onPress={async () => {
-                  if (deleteId) {
-                    await deleteProgressPhoto(deleteId);
-                    setDeleteId(null);
-                  }
-                }} 
+                onPress={handleDeleteConfirm} 
                 style={{ flex: 1 }} 
               />
             </View>
@@ -111,7 +113,7 @@ export const ProgressGallery: React.FC = () => {
       </Modal>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

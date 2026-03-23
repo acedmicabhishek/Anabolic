@@ -7,9 +7,8 @@ interface BMRMeterProps {
   value: string | number;
 }
 
-export const BMRMeter: React.FC<BMRMeterProps> = ({ value }) => {
+export const BMRMeter: React.FC<BMRMeterProps> = React.memo(({ value }) => {
   const bmr = typeof value === 'string' ? parseFloat(value) : value;
-  
   
   const min = 1000;
   const max = 3500;
@@ -30,7 +29,6 @@ export const BMRMeter: React.FC<BMRMeterProps> = ({ value }) => {
 
       <View style={styles.meterContainer}>
         <View style={styles.track}>
-          {/* Multi-shade orange/amber gradient segments */}
           <View style={[styles.segment, { flex: 1, backgroundColor: '#fef3c7', borderTopLeftRadius: 4, borderBottomLeftRadius: 4 }]} />
           <View style={[styles.segment, { flex: 1, backgroundColor: '#fde68a' }]} />
           <View style={[styles.segment, { flex: 1, backgroundColor: '#fcd34d' }]} />
@@ -53,7 +51,7 @@ export const BMRMeter: React.FC<BMRMeterProps> = ({ value }) => {
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

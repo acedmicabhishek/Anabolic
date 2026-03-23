@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
 import { useMetrics } from '../context/MetricsContext';
 import { ChartWidget } from '../components/organisms/ChartWidget';
-import { converters } from '../utils/converters';
 import { BODY_PARTS } from '../types/metrics';
 import { GradientText } from '../components/atoms/GradientText';
 
@@ -12,29 +11,23 @@ export const AnalyticsScreen: React.FC = () => {
   const { metrics, isLoading } = useMetrics();
   const [filter, setFilter] = useState<'WEEK' | 'MONTH' | 'YEAR'>('MONTH');
   
-  const coreVitals = ['Weight', 'Calories', 'Water', 'Height'];
+  const coreVitals = useMemo(() => ['Weight', 'Calories', 'Water', 'Height'], []);
   const [activeVital, setActiveVital] = useState<string>('Weight');
   const [activeBodyParts, setActiveBodyParts] = useState<string[]>(['Biceps', 'Waist']);
 
-  if (isLoading) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={styles.loadingText}>Loading Trends...</Text>
-      </View>
-    );
-  }
+  const toggleBodyPart = useCallback((b: string) => {
+    setActiveBodyParts(prev => {
+      if (prev.includes(b)) {
+        return prev.length > 1 ? prev.filter(x => x !== b) : prev;
+      } else {
+        return [...prev, b];
+      }
+    });
+  }, []);
 
-  const toggleBodyPart = (b: string) => {
-    if (activeBodyParts.includes(b)) {
-      if (activeBodyParts.length > 1) setActiveBodyParts(activeBodyParts.filter(x => x !== b));
-    } else {
-      setActiveBodyParts([...activeBodyParts, b]);
-    }
-  };
-
-  const days = filter === 'WEEK' ? 7 : filter === 'MONTH' ? 30 : 365;
+  const days = useMemo(() => filter === 'WEEK' ? 7 : filter === 'MONTH' ? 30 : 365, [filter]);
   
-  const generateDates = () => {
+  const dateLabels = useMemo(() => {
     const dates = [];
     const now = new Date();
     for (let i = days - 1; i >= 0; i--) {
@@ -43,25 +36,21 @@ export const AnalyticsScreen: React.FC = () => {
       dates.push(d.toISOString().split('T')[0]);
     }
     return dates;
-  };
+  }, [days]);
   
-  const dateLabels = generateDates();
-  
-  
-  const chartLabels = dateLabels.map((dStr, index) => {
+  const chartLabels = useMemo(() => dateLabels.map((dStr, index) => {
     const isFirst = index === 0;
     const isLast = index === dateLabels.length - 1;
     const isMiddle = index === Math.floor(dateLabels.length / 2);
-    
     
     if (isFirst || isLast || isMiddle) {
       const d = new Date(dStr);
       return `${d.getMonth() + 1}/${d.getDate()}`;
     }
     return '';
-  });
+  }), [dateLabels]);
 
-  const getContinuousHistory = (historyArr: {date: string, value: number}[]) => {
+  const getContinuousHistory = useCallback((historyArr: {date: string, value: number}[]) => {
     if (!historyArr || historyArr.length === 0) return dateLabels.map(() => 0);
     const sorted = [...historyArr].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     let lastKnown = sorted[0].value;
@@ -73,41 +62,50 @@ export const AnalyticsScreen: React.FC = () => {
       }
       return lastKnown;
     });
-  };
+  }, [dateLabels]);
 
-  const getContinuousSum = (mealsArr: {date: string, calories: number}[]) => {
+  const getContinuousSum = useCallback((mealsArr: {date: string, calories: number}[]) => {
     if (!mealsArr) return dateLabels.map(() => 0);
     return dateLabels.map(dStr => {
       return mealsArr.filter(m => m.date.includes(dStr)).reduce((sum, m) => sum + m.calories, 0);
     });
-  };
+  }, [dateLabels]);
 
-  const rawWeight = getContinuousHistory(metrics.weightHistory || []);
-  const rawHeight = getContinuousHistory(metrics.heightHistory || []);
-  const rawWater = getContinuousHistory(metrics.waterHistory || []);
-  const rawCalories = getContinuousSum(metrics.meals || []);
+  const rawWeight = useMemo(() => getContinuousHistory(metrics.weightHistory || []), [getContinuousHistory, metrics.weightHistory]);
+  const rawHeight = useMemo(() => getContinuousHistory(metrics.heightHistory || []), [getContinuousHistory, metrics.heightHistory]);
+  const rawWater = useMemo(() => getContinuousHistory(metrics.waterHistory || []), [getContinuousHistory, metrics.waterHistory]);
+  const rawCalories = useMemo(() => getContinuousSum(metrics.meals || []), [getContinuousSum, metrics.meals]);
 
-  const colorMap: Record<string, string> = {
+  const colorMap: Record<string, string> = useMemo(() => ({
     'Weight': THEME.colors.primary,
     'Calories': '#f59e0b', 
     'Water': '#3b82f6', 
     'Height': '#ec4899', 
-  };
+  }), []);
 
-  let vitalRaw: number[] = [];
-  let vitalUnit = '';
-  if (activeVital === 'Weight') { vitalRaw = rawWeight; vitalUnit = metrics.preferences.weight; }
-  if (activeVital === 'Calories') { vitalRaw = rawCalories; vitalUnit = 'kcal'; }
-  if (activeVital === 'Water') { vitalRaw = rawWater; vitalUnit = metrics.preferences.fluid; }
-  if (activeVital === 'Height') { vitalRaw = rawHeight; vitalUnit = metrics.preferences.height; }
+  const vitalRaw = useMemo(() => {
+    if (activeVital === 'Weight') return rawWeight;
+    if (activeVital === 'Calories') return rawCalories;
+    if (activeVital === 'Water') return rawWater;
+    if (activeVital === 'Height') return rawHeight;
+    return [0];
+  }, [activeVital, rawWeight, rawCalories, rawWater, rawHeight]);
 
-  const singleVitalDataset = [{
+  const vitalUnit = useMemo(() => {
+    if (activeVital === 'Weight') return metrics.preferences.weight;
+    if (activeVital === 'Calories') return 'kcal';
+    if (activeVital === 'Water') return metrics.preferences.fluid;
+    if (activeVital === 'Height') return metrics.preferences.height;
+    return '';
+  }, [activeVital, metrics.preferences]);
+
+  const singleVitalDataset = useMemo(() => [{
     name: activeVital,
     color: colorMap[activeVital] || THEME.colors.primary,
     data: vitalRaw && vitalRaw.length > 0 ? vitalRaw : [0]
-  }];
+  }], [activeVital, colorMap, vitalRaw]);
 
-  const bodyDatasets = activeBodyParts.map((bp, i) => {
+  const bodyDatasets = useMemo(() => activeBodyParts.map((bp, i) => {
     const hue = (i * 137.5) % 360; 
     const c = `hsl(${hue}, 70%, 50%)`;
     
@@ -117,9 +115,17 @@ export const AnalyticsScreen: React.FC = () => {
       color: c,
       data: getContinuousHistory(logs)
     };
-  });
+  }), [activeBodyParts, metrics.bodyMeasurements, getContinuousHistory]);
 
-  const currentWeight = metrics.weightHistory && metrics.weightHistory.length > 0 ? metrics.weightHistory[0].value : 0;
+  const currentWeight = useMemo(() => metrics.weightHistory && metrics.weightHistory.length > 0 ? metrics.weightHistory[0].value : 0, [metrics.weightHistory]);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.loadingText}>Loading Trends...</Text>
+      </View>
+    );
+  }
   
   return (
     <SafeAreaView style={styles.container}>
@@ -277,9 +283,7 @@ const styles = StyleSheet.create({
   pillTextActive: { color: THEME.colors.background },
   
   chartWrapper: { alignItems: 'center', marginBottom: THEME.spacing.xxl, width: '100%' },
-  chartCaption: { fontFamily: THEME.typography.medium, color: THEME.colors.textMuted, fontSize: 11, textAlign: 'center', paddingHorizontal: 20, marginTop: THEME.spacing.sm },
   
-  insightsTitle: { fontFamily: THEME.typography.black, fontSize: 20, color: THEME.colors.text, marginBottom: THEME.spacing.md },
   insightsRow: { flexDirection: 'row', gap: THEME.spacing.md },
   insightCard: { flex: 1, backgroundColor: THEME.colors.surface, padding: THEME.spacing.md, borderRadius: THEME.roundness.md },
   insightHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },

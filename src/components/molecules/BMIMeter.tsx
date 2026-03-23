@@ -6,7 +6,7 @@ interface BMIMeterProps {
   value: string | number;
 }
 
-export const BMIMeter: React.FC<BMIMeterProps> = ({ value }) => {
+export const BMIMeter: React.FC<BMIMeterProps> = React.memo(({ value }) => {
   const bmi = typeof value === 'string' ? parseFloat(value) : value;
   
   const getCategory = (val: number) => {
@@ -17,7 +17,6 @@ export const BMIMeter: React.FC<BMIMeterProps> = ({ value }) => {
   };
 
   const category = getCategory(bmi);
-  
   
   const min = 10;
   const max = 40;
@@ -57,8 +56,7 @@ export const BMIMeter: React.FC<BMIMeterProps> = ({ value }) => {
       </View>
     </View>
   );
-};
-
+});
 
 const getLabelPos = (val: number) => {
   const min = 10;

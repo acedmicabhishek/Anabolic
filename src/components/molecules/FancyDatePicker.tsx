@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -17,14 +17,14 @@ interface FancyDatePickerProps {
 
 const ITEM_WIDTH = 60;
 
-export const FancyDatePicker: React.FC<FancyDatePickerProps> = ({ 
+export const FancyDatePicker: React.FC<FancyDatePickerProps> = React.memo(({ 
   selectedDate, 
   onDateChange,
   onOpenCalendar 
 }) => {
   const flatListRef = useRef<FlatList>(null);
   
-  const dates = React.useMemo(() => {
+  const dates = useMemo(() => {
     const arr = [];
     const baseDate = new Date(); 
     const start = new Date(baseDate);
@@ -51,7 +51,7 @@ export const FancyDatePicker: React.FC<FancyDatePickerProps> = ({
     }
   }, [selectedDate, dates]);
 
-  const renderItem = ({ item }: { item: Date }) => {
+  const renderItem = useCallback(({ item }: { item: Date }) => {
     const isSelected = item.toDateString() === selectedDate.toDateString();
     const dayName = item.toLocaleDateString('en-US', { weekday: 'short' });
     const dayNum = item.getDate();
@@ -71,7 +71,9 @@ export const FancyDatePicker: React.FC<FancyDatePickerProps> = ({
         {isToday && !isSelected && <View style={styles.todayDot} />}
       </TouchableOpacity>
     );
-  };
+  }, [selectedDate, onDateChange]);
+
+  const keyExtractor = useCallback((item: Date) => item.toISOString(), []);
 
   return (
     <View style={styles.container}>
@@ -79,7 +81,7 @@ export const FancyDatePicker: React.FC<FancyDatePickerProps> = ({
         ref={flatListRef}
         data={dates}
         renderItem={renderItem}
-        keyExtractor={(item) => item.toISOString()}
+        keyExtractor={keyExtractor}
         horizontal
         showsHorizontalScrollIndicator={false}
         snapToInterval={ITEM_WIDTH}
@@ -93,6 +95,9 @@ export const FancyDatePicker: React.FC<FancyDatePickerProps> = ({
         onScrollToIndexFailed={(info) => {
           flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
         }} 
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
       />
       <TouchableOpacity style={styles.calendarBtn} onPress={onOpenCalendar}>
         <View style={styles.calendarCircle}>
@@ -101,7 +106,7 @@ export const FancyDatePicker: React.FC<FancyDatePickerProps> = ({
       </TouchableOpacity>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

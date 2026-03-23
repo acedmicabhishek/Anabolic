@@ -13,7 +13,7 @@ interface MetricCardProps {
   onPress?: () => void;
 }
 
-export const MetricCard: React.FC<MetricCardProps> = ({ 
+export const MetricCard: React.FC<MetricCardProps> = React.memo(({ 
   label, 
   value, 
   type,
@@ -53,9 +53,6 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     displayValue = Number(value).toString();
   }
 
-  
-  
-  
   const Container = onPress ? TouchableOpacity : View;
 
   return (
@@ -73,7 +70,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       </View>
     </Container>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -115,14 +112,5 @@ const styles = StyleSheet.create({
     color: THEME.colors.textMuted,
     fontSize: 12,
     marginLeft: 2,
-  },
-  trendBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  trendText: {
-    fontFamily: THEME.typography.bold,
-    fontSize: 10,
   },
 });
