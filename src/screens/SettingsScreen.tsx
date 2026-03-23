@@ -8,6 +8,21 @@ import { storage } from '../services/storage';
 import { useMetrics } from '../context/MetricsContext';
 import { GradientText } from '../components/atoms/GradientText';
 import { SettingsIcon } from '../components/atoms/SettingsIcon';
+import packageJson from '../../package.json';
+
+const { version } = packageJson;
+
+const isNewerVersion = (latest: string, current: string) => {
+  const l = latest.replace('v', '').split('.').map(Number);
+  const c = current.replace('v', '').split('.').map(Number);
+  for (let i = 0; i < Math.max(l.length, c.length); i++) {
+    const v1 = l[i] || 0;
+    const v2 = c[i] || 0;
+    if (v1 > v2) return true;
+    if (v1 < v2) return false;
+  }
+  return false;
+};
 
 export const SettingsScreen: React.FC = () => {
   const { metrics, isLoading, simulateData, setCalorieGoal, setWaterGoal, setTargetWeight, updateMacros, updatePreferences } = useMetrics();
@@ -34,12 +49,11 @@ export const SettingsScreen: React.FC = () => {
       }
 
       const latestRelease = releases[0];
-      const latestVersionNum = parseFloat(latestRelease.name || latestRelease.tag_name?.replace('v', ''));
-      const currentVersionNum = 2.0;
-
-      if (latestVersionNum > currentVersionNum) {
+      const latestTag = latestRelease.name || latestRelease.tag_name || '';
+      
+      if (isNewerVersion(latestTag, version)) {
         setUpdateUrl(latestRelease.html_url);
-        showStatus('Update Found', `v${latestVersionNum} is available via GitHub Repo. Click download.`, 'success');
+        showStatus('Update Found', `${latestTag} is available via GitHub Repo. Click download.`, 'success');
       } else {
         showStatus('Up to Date', 'You are running the latest version.', 'success');
       }
@@ -256,7 +270,7 @@ export const SettingsScreen: React.FC = () => {
             <View style={[styles.infoRow, { paddingBottom: 14 }]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoTitle}>Anabolic</Text>
-                <Text style={styles.infoVersion}>v2.0</Text>
+                <Text style={styles.infoVersion}>v{version}</Text>
               </View>
               <TouchableOpacity onPress={checkForUpdates} disabled={isChecking} style={styles.updateBadge}>
                 <Text style={styles.updateBadgeText}>{isChecking ? '...' : updateUrl ? 'Download' : 'Update'}</Text>
@@ -278,8 +292,8 @@ export const SettingsScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Support</Text>
           </View>
           <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
-            <TouchableOpacity 
-              style={[styles.prefRow, { paddingVertical: 14 }]} 
+            <TouchableOpacity
+              style={[styles.prefRow, { paddingVertical: 14 }]}
               onPress={() => Linking.openURL('https://github.com/acedmicabhishek/Anabolic')}
             >
               <View style={styles.prefLeft}>
@@ -293,8 +307,8 @@ export const SettingsScreen: React.FC = () => {
 
             <View style={styles.prefSeparator} />
 
-            <TouchableOpacity 
-              style={[styles.prefRow, { paddingVertical: 14 }]} 
+            <TouchableOpacity
+              style={[styles.prefRow, { paddingVertical: 14 }]}
               onPress={() => Linking.openURL('upi://pay?pa=6299094152@ibl&pn=Anabolic&cu=INR')}
             >
               <View style={styles.prefLeft}>
