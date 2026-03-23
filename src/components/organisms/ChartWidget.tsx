@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { Circle, G, Rect, Text as SvgText } from 'react-native-svg';
 import { THEME } from '../../constants/theme';
@@ -20,31 +20,52 @@ export const ChartWidget: React.FC<ChartWidgetProps> = React.memo(({ title, labe
     setTooltip(null);
   }, [datasets, data, labels]);
 
+  
+  const safeguardData = useCallback((arr: number[]): number[] => {
+    if (arr.length < 2) return arr;
+    const allSame = arr.every(v => v === arr[0]);
+    if (allSame && arr[0] !== 0) {
+      return arr.map((v, i) => i === 0 ? v + 0.01 : v);
+    }
+    return arr;
+  }, []);
+
   const chartData = useMemo(() => ({
     labels: labels,
     datasets: datasets ? datasets.map(ds => ({
-      data: ds.data.length > 0 ? ds.data : [0],
+      data: safeguardData(ds.data.length > 0 ? ds.data : [0]),
       color: (opacity = 1) => ds.color,
       strokeWidth: 3,
     })) : [
       {
-        data: data && data.length > 0 ? data : [0],
+        data: safeguardData(data && data.length > 0 ? data : [0]),
         color: (opacity = 1) => THEME.colors.primary,
         strokeWidth: 4,
       },
     ],
-  }), [labels, datasets, data]);
+  }), [labels, datasets, data, safeguardData]);
 
-  const startWeight = useMemo(() => data && data.length > 0 ? data[0] : 0, [data]);
+  const startWeight = useMemo(() => data && data.length > 0 ? (data.find(v => v > 0) || 0) : 0, [data]);
   const currentWeight = useMemo(() => data && data.length > 0 ? data[data.length - 1] : 0, [data]);
   const totalLost = useMemo(() => (startWeight - currentWeight).toFixed(1), [startWeight, currentWeight]);
   const isLoss = useMemo(() => Number(totalLost) >= 0, [totalLost]);
+
+  
+  const decimalPlaces = useMemo(() => {
+    const allValues = datasets 
+      ? datasets.flatMap(ds => ds.data) 
+      : (data || []);
+    const maxVal = Math.max(...allValues, 0);
+    if (maxVal >= 100) return 0;
+    if (maxVal >= 10) return 1;
+    return 1;
+  }, [datasets, data]);
 
   const chartConfig = useMemo(() => ({
     backgroundColor: THEME.colors.surface,
     backgroundGradientFrom: THEME.colors.surface,
     backgroundGradientTo: THEME.colors.surface,
-    decimalPlaces: datasets && datasets.some(ds => ds.data.some(v => v >= 100)) ? 0 : 1,
+    decimalPlaces,
     color: (opacity = 1) => `rgba(141, 224, 166, ${opacity})`, 
     labelColor: (opacity = 1) => THEME.colors.textMuted,
     fillShadowGradientFrom: THEME.colors.primary,
@@ -63,7 +84,7 @@ export const ChartWidget: React.FC<ChartWidgetProps> = React.memo(({ title, labe
       strokeWidth: 1,
       stroke: 'rgba(255, 255, 255, 0.05)',
     },
-  }), [datasets]);
+  }), [datasets, decimalPlaces]);
 
   const handleDataPointClick = useCallback(({ value, x, y, index }: { value: number; x: number; y: number; index: number }) => {
     setTooltip({ value, x, y, index });
@@ -103,12 +124,28 @@ export const ChartWidget: React.FC<ChartWidgetProps> = React.memo(({ title, labe
     );
   }, [data]);
 
-  const chartWidth = useMemo(() => Dimensions.get('window').width - THEME.spacing.lg * 4, []);
+  const baseWidth = useMemo(() => Dimensions.get('window').width - THEME.spacing.lg * 4, []);
+  
+  const chartWidth = useMemo(() => {
+    const dataPoints = chartData.labels.length;
+    let pointWidth = 45; 
+    if (dataPoints > 50) pointWidth = 12; 
+    return Math.max(baseWidth, dataPoints * pointWidth);
+  }, [baseWidth, chartData.labels.length]);
+
+  
+  const hasEnoughData = useMemo(() => {
+    if (datasets) {
+      return datasets.some(ds => ds.data.length >= 2 && ds.data.some(v => v > 0));
+    }
+    return data ? data.length >= 2 : false;
+  }, [datasets, data]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         {!hideTitle && <Text style={styles.title}>{title} {unit ? `(${unit})` : ''}</Text>}
+        {unit && hideTitle && <Text style={styles.unitBadge}>{unit.toUpperCase()}</Text>}
         {!datasets && data && (
           <View style={styles.kpiContainer}>
             <Text style={styles.kpiValue}>{Math.abs(Number(totalLost))}</Text>
@@ -126,31 +163,67 @@ export const ChartWidget: React.FC<ChartWidgetProps> = React.memo(({ title, labe
           ))}
         </View>
       )}
-      {(data && data.length < 2) && (!datasets || datasets[0].data.length < 2) ? (
+      {!hasEnoughData ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Not enough data to display trend.</Text>
         </View>
       ) : (
-        <LineChart
-          data={chartData}
-          width={chartWidth} 
-          height={220}
-          yAxisSuffix=""
-          yAxisLabel=""
-          chartConfig={chartConfig}
-          style={styles.chart}
-          withInnerLines={true}
-          withOuterLines={false}
-          withVerticalLines={false}
-          withHorizontalLabels={true}
-          withVerticalLabels={true}
-          withDots={!datasets}
-          fromZero={false}
-          onDataPointClick={handleDataPointClick}
-          decorator={renderDecorator}
-          getDotColor={() => THEME.colors.primary}
-          renderDotContent={!datasets && data ? renderDotContent : undefined}
-        />
+        <View style={{ flexDirection: 'row', overflow: 'hidden' }}>
+          {chartWidth > baseWidth && (
+            <View style={{ width: 55, backgroundColor: THEME.colors.surface, zIndex: 2, overflow: 'hidden' }}>
+              <LineChart
+                bezier
+                data={{
+                  ...chartData,
+                  datasets: chartData.datasets.map(ds => ({ ...ds, color: () => 'transparent' }))
+                }}
+                width={baseWidth}
+                height={220}
+                yAxisSuffix=""
+                yAxisLabel=""
+                chartConfig={{
+                  ...chartConfig,
+                  color: () => 'transparent',
+                  propsForDots: { r: '0' },
+                  formatXLabel: () => '',
+                  propsForBackgroundLines: { strokeWidth: 0 }
+                }}
+                style={styles.chart}
+                withInnerLines={false}
+                withOuterLines={false}
+                withVerticalLines={false}
+                withHorizontalLabels={true}
+                withVerticalLabels={false}
+                withDots={false}
+                fromZero={false}
+              />
+            </View>
+          )}
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false} style={{ flex: 1, zIndex: 1, marginLeft: chartWidth > baseWidth ? -15 : 0 }}>
+            <LineChart
+              bezier
+              data={chartData}
+              width={chartWidth}
+              height={220}
+              yAxisSuffix=""
+              yAxisLabel=""
+              chartConfig={chartConfig}
+              style={styles.chart}
+              withInnerLines={true}
+              withOuterLines={false}
+              withVerticalLines={false}
+              withHorizontalLabels={!(chartWidth > baseWidth)}
+              withVerticalLabels={true}
+              withDots={!datasets}
+              fromZero={false}
+              onDataPointClick={handleDataPointClick}
+              decorator={renderDecorator}
+              getDotColor={() => THEME.colors.primary}
+              renderDotContent={!datasets && data ? renderDotContent : undefined}
+            />
+          </ScrollView>
+        </View>
       )}
     </View>
   );
@@ -214,6 +287,14 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
     fontSize: 10,
     letterSpacing: 0.5,
+  },
+  unitBadge: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.textMuted,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    opacity: 0.5,
   },
   chart: {
     marginVertical: THEME.spacing.sm,

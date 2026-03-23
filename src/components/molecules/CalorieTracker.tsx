@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Animated, Easing } from 'react-native';
 import Svg, { Circle, Path, Defs, RadialGradient, Stop, ClipPath, G } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { THEME } from '../../constants/theme';
 import { useMetrics } from '../../context/MetricsContext';
 import { converters } from '../../utils/converters';
+import { Accelerometer } from 'expo-sensors';
+import { BlurView } from 'expo-blur';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -15,6 +17,30 @@ const Wave = ({ fill, progress, offset, size }: { fill: string, progress: number
   const path = `
     M 0 ${y}
     C ${size / 3} ${y - waveHeight} ${size / 1.5} ${y + waveHeight} ${size} ${y}
+    V ${size}
+    H 0
+    Z
+  `;
+  return <Path d={path} fill={fill} />;
+};
+
+const AnimatedWaterWave = ({ fill, progress, size, tiltX, phaseOffset, amplitude }: { 
+  fill: string, progress: number, size: number, tiltX: number, phaseOffset: number, amplitude: number 
+}) => {
+  const baseY = size * (1 - progress / 100);
+  const tiltAmount = tiltX * 25;
+  const wH = amplitude;
+
+  const yLeft = baseY + tiltAmount;
+  const yRight = baseY - tiltAmount;
+  const yMid = baseY + Math.sin(phaseOffset) * wH;
+
+  const path = `
+    M 0 ${yLeft}
+    C ${size * 0.25} ${yLeft - wH + Math.sin(phaseOffset) * wH * 0.5}
+      ${size * 0.5} ${yMid}
+      ${size * 0.75} ${yRight + wH + Math.sin(phaseOffset + 1) * wH * 0.5}
+    L ${size} ${yRight}
     V ${size}
     H 0
     Z
@@ -41,6 +67,47 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({
 }) => {
   const { metrics } = useMetrics();
 
+  const [tiltX, setTiltX] = useState(0);
+  const animatedTilt = useRef(new Animated.Value(0)).current;
+  const wavePhase = useRef(new Animated.Value(0)).current;
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    Accelerometer.setUpdateInterval(100);
+    const sub = Accelerometer.addListener(({ x }) => {
+      Animated.spring(animatedTilt, {
+        toValue: -x,
+        useNativeDriver: false,
+        friction: 8,
+        tension: 40,
+      }).start();
+    });
+
+    const listenerId = animatedTilt.addListener(({ value }) => {
+      setTiltX(value);
+    });
+
+    const loopAnim = Animated.loop(
+      Animated.timing(wavePhase, {
+        toValue: Math.PI * 2,
+        duration: 3000,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      })
+    );
+    loopAnim.start();
+    const phaseId = wavePhase.addListener(({ value }) => {
+      setPhase(value);
+    });
+
+    return () => {
+      sub.remove();
+      animatedTilt.removeListener(listenerId);
+      wavePhase.removeListener(phaseId);
+      loopAnim.stop();
+    };
+  }, [animatedTilt, wavePhase]);
+
   const percentage = useMemo(() => (current / goal) * 100, [current, goal]);
   const remaining = useMemo(() => Math.max(goal - current, 0), [goal, current]);
 
@@ -55,6 +122,101 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({
   const strokeDashoffset = useMemo(() => circumference - (Math.min(percentage, 100) / 100) * circumference, [circumference, percentage]);
 
   const progressColor = useMemo(() => percentage >= 100 ? THEME.colors.error : THEME.colors.primary, [percentage]);
+
+  const auraBlob1 = useRef(new Animated.Value(0)).current;
+  const auraBlob2 = useRef(new Animated.Value(0)).current;
+  const auraBlob3 = useRef(new Animated.Value(0)).current;
+  const auraScale = useRef(new Animated.Value(1)).current;
+  const isOverflow = percentage > 100;
+  
+  useEffect(() => {
+    if (isOverflow) {
+      const pulse1 = Animated.loop(
+        Animated.sequence([
+          Animated.timing(auraBlob1, { toValue: 0.9, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+          Animated.timing(auraBlob1, { toValue: 0.4, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        ])
+      );
+      const pulse2 = Animated.loop(
+        Animated.sequence([
+          Animated.timing(auraBlob2, { toValue: 0.7, duration: 2800, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+          Animated.timing(auraBlob2, { toValue: 0.3, duration: 2800, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        ])
+      );
+      const pulse3 = Animated.loop(
+        Animated.sequence([
+          Animated.timing(auraBlob3, { toValue: 0.8, duration: 3200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+          Animated.timing(auraBlob3, { toValue: 0.25, duration: 3200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        ])
+      );
+      const scaleLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(auraScale, { toValue: 1.06, duration: 4000, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+          Animated.timing(auraScale, { toValue: 0.96, duration: 4000, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        ])
+      );
+      pulse1.start(); pulse2.start(); pulse3.start(); scaleLoop.start();
+      return () => { pulse1.stop(); pulse2.stop(); pulse3.stop(); scaleLoop.stop(); };
+    } else {
+      auraBlob1.setValue(0);
+      auraBlob2.setValue(0);
+      auraBlob3.setValue(0);
+      auraScale.setValue(1);
+    }
+  }, [isOverflow, auraBlob1, auraBlob2, auraBlob3, auraScale]);
+
+  const auraSize = size * 1.6;
+
+  const renderAura = () => {
+    if (!isOverflow) return null;
+    
+    const blobData = [
+      { color: 'rgba(255, 160, 40, 0.7)', x: -50, y: -20, s: auraSize * 0.75, anim: auraBlob1, shadow: '#FF9500' },
+      { color: 'rgba(255, 50, 120, 0.6)', x: 45, y: -40, s: auraSize * 0.65, anim: auraBlob2, shadow: '#FF3278' },
+      { color: 'rgba(0, 210, 180, 0.55)', x: 40, y: 55, s: auraSize * 0.7, anim: auraBlob3, shadow: '#00D2B4' },
+      { color: 'rgba(147, 89, 255, 0.5)', x: -45, y: 50, s: auraSize * 0.65, anim: auraBlob2, shadow: '#9359FF' },
+      { color: 'rgba(255, 220, 60, 0.4)', x: 0, y: 0, s: auraSize * 0.55, anim: auraBlob1, shadow: '#FFDC3C' },
+    ];
+
+    return (
+      <Animated.View 
+        style={[
+          styles.auraContainer, 
+          { 
+            width: auraSize, 
+            height: auraSize, 
+            transform: [{ scale: auraScale }] 
+          }
+        ]}
+      >
+        {blobData.map((blob, i) => (
+          <Animated.View
+            key={`blob-${i}`}
+            style={{
+              position: 'absolute',
+              width: blob.s,
+              height: blob.s,
+              borderRadius: blob.s / 2,
+              backgroundColor: blob.color,
+              left: (auraSize - blob.s) / 2 + blob.x,
+              top: (auraSize - blob.s) / 2 + blob.y,
+              opacity: blob.anim,
+              shadowColor: blob.shadow,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.9,
+              shadowRadius: 60,
+              elevation: 25,
+            }}
+          />
+        ))}
+         <BlurView
+          intensity={100}
+          tint="dark"
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+    );
+  };
 
   const consumedMacros = useMemo(() => {
     const todayStr = date.toISOString().split('T')[0];
@@ -79,6 +241,7 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({
     <View style={styles.container}>
       <View style={styles.svgContainerWrapper}>
         <View style={styles.svgContainer}>
+          {renderAura()}
           <Svg width={size} height={size}>
             <Defs>
               <RadialGradient id="innerShadow" cx="50%" cy="50%" rx="50%" ry="50%">
@@ -100,11 +263,10 @@ export const CalorieTracker: React.FC<CalorieTrackerProps> = React.memo(({
               strokeWidth={strokeWidth}
             />
 
-            {/* Fluid Layers */}
             <G clipPath="url(#circleClip)">
-                <Wave size={size} progress={percentage} fill={progressColor + '22'} offset={0} />
-                <Wave size={size} progress={percentage - 2} fill={progressColor + '44'} offset={Math.PI / 2} />
-                <Wave size={size} progress={percentage - 5} fill={progressColor + '88'} offset={Math.PI} />
+                <AnimatedWaterWave size={size} progress={Math.min(percentage, 105)} fill={progressColor + '22'} tiltX={tiltX} phaseOffset={phase} amplitude={10} />
+                <AnimatedWaterWave size={size} progress={Math.min(percentage, 105) - 2} fill={progressColor + '44'} tiltX={tiltX} phaseOffset={phase + 1.5} amplitude={7} />
+                <AnimatedWaterWave size={size} progress={Math.min(percentage, 105) - 5} fill={progressColor + '88'} tiltX={tiltX} phaseOffset={phase + 3} amplitude={5} />
             </G>
 
             {/* Inner Shadow Effect */}
@@ -228,6 +390,19 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  overflowAura: {
+    position: 'absolute',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 40,
+    elevation: 20,
+  },
+  auraContainer: {
+    position: 'absolute',
+    zIndex: -1,
   },
   svgTextContainer: {
     position: 'absolute',

@@ -136,7 +136,7 @@ export const SettingsScreen: React.FC = () => {
             {[
               { label: 'Weight', icon: 'scale-outline', options: ['kg', 'lb'], current: currentPrefs.weight, key: 'weight' },
               { label: 'Height', icon: 'resize-outline', options: ['cm', 'ft'], current: currentPrefs.height, key: 'height' },
-              { label: 'Body', icon: 'body-outline', options: ['cm', 'in'], current: currentPrefs.body, key: 'body' },
+              { label: 'Body', icon: 'body-outline', options: ['cm', 'inch'], current: currentPrefs.body, key: 'body' },
               { label: 'Fluid', icon: 'water-outline', options: ['ml', 'oz'], current: currentPrefs.fluid, key: 'fluid' },
             ].map((pref, idx) => (
               <View key={pref.label} style={[styles.prefRow, idx > 0 && styles.prefSeparator]}>

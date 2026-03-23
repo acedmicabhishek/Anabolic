@@ -58,7 +58,7 @@ const DEFAULT_METRICS: UserMetrics = {
   preferences: {
     weight: 'kg',
     height: 'cm',
-    body: 'cm',
+    body: 'inch',
     fluid: 'ml',
   },
 };

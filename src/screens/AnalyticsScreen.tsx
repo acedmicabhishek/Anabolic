@@ -39,16 +39,28 @@ export const AnalyticsScreen: React.FC = () => {
   }, [days]);
   
   const chartLabels = useMemo(() => dateLabels.map((dStr, index) => {
-    const isFirst = index === 0;
-    const isLast = index === dateLabels.length - 1;
-    const isMiddle = index === Math.floor(dateLabels.length / 2);
+    const d = new Date(dStr);
     
-    if (isFirst || isLast || isMiddle) {
-      const d = new Date(dStr);
-      return `${d.getMonth() + 1}/${d.getDate()}`;
+    if (filter === 'WEEK') {
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
     }
+    
+    if (filter === 'MONTH') {
+      if (index % 3 === 0 || index === dateLabels.length - 1) {
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+      }
+      return '';
+    }
+    
+    if (filter === 'YEAR') {
+      if (d.getDate() === 1 || d.getDate() === 15 || index === dateLabels.length - 1) {
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+      }
+      return '';
+    }
+    
     return '';
-  }), [dateLabels]);
+  }), [dateLabels, filter]);
 
   const getContinuousHistory = useCallback((historyArr: {date: string, value: number}[]) => {
     if (!historyArr || historyArr.length === 0) return dateLabels.map(() => 0);
@@ -210,32 +222,35 @@ export const AnalyticsScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Current Baselines</Text>
         </View>
         <View style={styles.insightsRow}>
-          <TouchableOpacity 
-            style={styles.insightCard}
-            onPress={() => setActiveVital('Weight')}
-          >
+          <View style={styles.insightCard}>
             <View style={styles.insightHeader}>
-              <Ionicons name="scale-outline" size={14} color={THEME.colors.primary} />
-              <Text style={styles.insightLabel}>Current</Text>
+              <Ionicons name="pulse-outline" size={14} color={colorMap[activeVital]} />
+              <Text style={styles.insightLabel}>Current {activeVital}</Text>
             </View>
-            <Text style={styles.insightValue}>{currentWeight} <Text style={styles.insightUnit}>{metrics.preferences.weight}</Text></Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.insightCard}
-            onPress={() => setActiveVital('Weight')}
-          >
+            <Text style={styles.insightValue}>{vitalRaw.length > 0 ? vitalRaw[vitalRaw.length - 1] : 0} <Text style={styles.insightUnit}>{vitalUnit}</Text></Text>
+          </View>
+          <View style={styles.insightCard}>
             <View style={styles.insightHeader}>
               <Ionicons name="flag-outline" size={14} color={THEME.colors.primary} />
               <Text style={styles.insightLabel}>Target</Text>
             </View>
-            <Text style={styles.insightValue}>{metrics.targetWeight || '--'} <Text style={styles.insightUnit}>{metrics.preferences.weight}</Text></Text>
-          </TouchableOpacity>
+            <Text style={styles.insightValue}>
+              {activeVital === 'Weight' ? metrics.targetWeight || '--' :
+               activeVital === 'Calories' ? metrics.calorieGoal || '--' :
+               activeVital === 'Water' ? metrics.waterGoal || '--' : '--'} <Text style={styles.insightUnit}>{vitalUnit}</Text>
+            </Text>
+          </View>
           <View style={styles.insightCard}>
             <View style={styles.insightHeader}>
               <Ionicons name="list-outline" size={14} color={THEME.colors.primary} />
               <Text style={styles.insightLabel}>Logs</Text>
             </View>
-            <Text style={styles.insightValue}>{metrics.weightHistory?.length || 0} <Text style={styles.insightUnit}>Entries</Text></Text>
+            <Text style={styles.insightValue}>
+              {activeVital === 'Weight' ? (metrics.weightHistory?.length || 0) :
+               activeVital === 'Calories' ? (metrics.meals?.length || 0) :
+               activeVital === 'Water' ? (metrics.waterHistory?.length || 0) :
+               (metrics.heightHistory?.length || 0)} <Text style={styles.insightUnit}>Entries</Text>
+            </Text>
           </View>
         </View>
 

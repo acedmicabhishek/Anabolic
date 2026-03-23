@@ -23,7 +23,8 @@ export const OnboardingScreen: React.FC = () => {
   
   const [height, setHeight] = useState('175');
   const [feet, setFeet] = useState('5');
-  const [inches, setInches] = useState('9');
+  const [inchWhole, setInchWhole] = useState('9');
+  const [inchDecimal, setInchDecimal] = useState('0');
   const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
 
   const [goal, setGoal] = useState<'lose' | 'maintain' | 'gain'>('maintain');
@@ -36,7 +37,8 @@ export const OnboardingScreen: React.FC = () => {
 
   const calculateTargets = () => {
     const w = weightUnit === 'lbs' ? (Number(weight) || 165) / 2.20462 : (Number(weight) || 75);
-    const h = heightUnit === 'ft' ? ((Number(feet) || 5) * 12 + (Number(inches) || 0)) * 2.54 : (Number(height) || 175);
+    const totalInches = (Number(inchWhole) || 0) + (Number(inchDecimal) || 0) / 10;
+    const h = heightUnit === 'ft' ? ((Number(feet) || 5) * 12 + totalInches) * 2.54 : (Number(height) || 175);
     const a = Number(age) || 25;
     
     
@@ -79,7 +81,8 @@ export const OnboardingScreen: React.FC = () => {
     const numericWeight = weightUnit === 'lbs' ? (Number(weight) || 165) / 2.20462 : (Number(weight) || 75);
     await addWeightLog(numericWeight, 'kg');
 
-    const finalHeight = heightUnit === 'ft' ? ((Number(feet) || 5) * 12 + (Number(inches) || 0)) * 2.54 : (Number(height) || 175);
+    const totalInches = (Number(inchWhole) || 0) + (Number(inchDecimal) || 0) / 10;
+    const finalHeight = heightUnit === 'ft' ? ((Number(feet) || 5) * 12 + totalInches) * 2.54 : (Number(height) || 175);
 
     const numericTargetWeight = weightUnit === 'lbs' ? (Number(targetWeight) || 155) / 2.20462 : (Number(targetWeight) || 70);
 
@@ -181,16 +184,30 @@ export const OnboardingScreen: React.FC = () => {
                 </View>
 
                 {heightUnit === 'cm' ? (
-                  <VerticalWheelPicker items={Array.from({length: 151}, (_, i) => (i + 100).toString())} value={height} onValueChange={setHeight} width={120} />
+                  <TextInput 
+                    style={styles.heroInput} 
+                    keyboardType="decimal-pad" 
+                    value={height} 
+                    onChangeText={setHeight} 
+                    placeholder="175" 
+                    placeholderTextColor={THEME.colors.textMuted} 
+                  />
                 ) : (
-                  <View style={{flexDirection: 'row', justifyContent: 'center', gap: 16}}>
+                  <View style={{flexDirection: 'row', justifyContent: 'center', gap: 8}}>
                     <View style={{alignItems: 'center'}}>
-                      <VerticalWheelPicker items={['4','5','6','7','8']} value={feet} onValueChange={setFeet} width={80} />
+                      <VerticalWheelPicker items={['4','5','6','7','8']} value={feet} onValueChange={setFeet} width={60} />
                       <Text style={styles.labelCenterMuted}>ft</Text>
                     </View>
                     <View style={{alignItems: 'center'}}>
-                      <VerticalWheelPicker items={Array.from({length: 12}, (_, i) => i.toString())} value={inches} onValueChange={setInches} width={80} />
+                      <VerticalWheelPicker items={Array.from({length: 12}, (_, i) => i.toString())} value={inchWhole} onValueChange={setInchWhole} width={60} />
                       <Text style={styles.labelCenterMuted}>in</Text>
+                    </View>
+                    <View style={{justifyContent: 'center', height: 150, paddingBottom: 20}}>
+                       <Text style={[styles.title, {fontSize: 32, opacity: 0.3}]}>.</Text>
+                    </View>
+                    <View style={{alignItems: 'center'}}>
+                      <VerticalWheelPicker items={Array.from({length: 10}, (_, i) => i.toString())} value={inchDecimal} onValueChange={setInchDecimal} width={60} />
+                      <Text style={styles.labelCenterMuted}>dec</Text>
                     </View>
                   </View>
                 )}
@@ -204,11 +221,14 @@ export const OnboardingScreen: React.FC = () => {
                     <TouchableOpacity style={[styles.unitBtn, weightUnit === 'lbs' && styles.unitBtnActive]} onPress={() => setWeightUnit('lbs')}><Text style={[styles.unitText, weightUnit === 'lbs' && styles.unitTextActive]}>lbs</Text></TouchableOpacity>
                   </View>
                 </View>
-                {weightUnit === 'kg' ? (
-                  <VerticalWheelPicker items={Array.from({length: 121}, (_, i) => (i + 30).toString())} value={weight} onValueChange={setWeight} width={120} />
-                ) : (
-                  <VerticalWheelPicker items={Array.from({length: 251}, (_, i) => (i + 60).toString())} value={weight} onValueChange={setWeight} width={120} />
-                )}
+                <TextInput 
+                  style={styles.heroInput} 
+                  keyboardType="decimal-pad" 
+                  value={weight} 
+                  onChangeText={setWeight} 
+                  placeholder={weightUnit === 'kg' ? '75' : '165'} 
+                  placeholderTextColor={THEME.colors.textMuted} 
+                />
               </View>
             </View>
           )}
@@ -224,11 +244,14 @@ export const OnboardingScreen: React.FC = () => {
               {goal !== 'maintain' && (
                 <View style={[styles.inputGroup, { marginBottom: THEME.spacing.xl }]}>
                   <Text style={styles.labelCenter}>Target Weight ({weightUnit})</Text>
-                  {weightUnit === 'kg' ? (
-                    <VerticalWheelPicker items={Array.from({length: 121}, (_, i) => (i + 30).toString())} value={targetWeight} onValueChange={setTargetWeight} width={120} />
-                  ) : (
-                    <VerticalWheelPicker items={Array.from({length: 251}, (_, i) => (i + 60).toString())} value={targetWeight} onValueChange={setTargetWeight} width={120} />
-                  )}
+                  <TextInput 
+                    style={styles.heroInput} 
+                    keyboardType="decimal-pad" 
+                    value={targetWeight} 
+                    onChangeText={setTargetWeight} 
+                    placeholder={weightUnit === 'kg' ? '70' : '155'} 
+                    placeholderTextColor={THEME.colors.textMuted} 
+                  />
                 </View>
               )}
 

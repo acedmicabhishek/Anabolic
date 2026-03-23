@@ -12,7 +12,7 @@ export const converters = {
   cmToFt: (cm: number) => {
     const totalInches = cm / 2.54;
     const feet = Math.floor(totalInches / 12);
-    const inches = Math.round(totalInches % 12);
+    const inches = parseFloat((totalInches % 12).toFixed(1));
     return { feet, inches };
   },
   ftToCm: (feet: number, inches: number) => (feet * 12 + inches) * 2.54,

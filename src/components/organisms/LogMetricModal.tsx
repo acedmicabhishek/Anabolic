@@ -42,7 +42,7 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
   const [currentUnit, setCurrentUnit] = useState<string>('');
   const [date, setDate] = useState(new Date());
 
-  // Macro States
+  
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
@@ -57,12 +57,23 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
   }, [visible, logDate]);
 
   const CATEGORIES = [
-    { label: 'CAL', value: 'calories', icon: 'flash' },
-    { label: 'H2O', value: 'water', icon: 'water' },
-    { label: 'WGT', value: 'weight', icon: 'scale' },
-    { label: 'BDY', value: 'body', icon: 'body' },
-    { label: 'HGT', value: 'height', icon: 'resize' },
+    { label: 'CAL', value: 'calories', icon: 'flash', color: '#10B981' },
+    { label: 'H2O', value: 'water', icon: 'water', color: '#3B82F6' },
+    { label: 'WGT', value: 'weight', icon: 'scale', color: '#F59E0B' },
+    { label: 'BDY', value: 'body', icon: 'body', color: '#8B5CF6' },
+    { label: 'HGT', value: 'height', icon: 'resize', color: '#EC4899' },
   ];
+
+  const activeCategory = CATEGORIES.find(c => c.value === type) || CATEGORIES[0];
+
+  const getContextHint = () => {
+    if (type === 'calories') return 'How much did you eat?';
+    if (type === 'water') return 'How much did you drink?';
+    if (type === 'weight') return 'Step on the scale';
+    if (type === 'body') return `Measure your ${selectedPart.toLowerCase()}`;
+    if (type === 'height') return 'How tall are you?';
+    return '';
+  };
 
   const handleCategoryChange = (val: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -202,9 +213,11 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
           onPress={onClose}
         />
         <View style={styles.glassContent}>
+          <View style={styles.dragHandle} />
+
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.headerActionBtn}>
-              <Ionicons name="chevron-down" size={24} color={THEME.colors.textSecondary} />
+              <Ionicons name="close" size={20} color={THEME.colors.textSecondary} />
             </TouchableOpacity>
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle}>{logSubType ? logSubType : 'LOG ENTRY'}</Text>
@@ -213,9 +226,7 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
                 <Text style={styles.dateText}>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={handleSave} disabled={loading} style={styles.headerActionBtn}>
-              <Ionicons name="checkmark" size={24} color={THEME.colors.primary} />
-            </TouchableOpacity>
+            <View style={{ width: 44 }} />
           </View>
 
           {!logSubType && (
@@ -225,7 +236,7 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
                   <TouchableOpacity
                     key={cat.value}
                     onPress={() => handleCategoryChange(cat.value)}
-                    style={[styles.segment, type === cat.value && styles.segmentActive]}
+                    style={[styles.segment, type === cat.value && [styles.segmentActive, { backgroundColor: cat.color }]]}
                   >
                     <Ionicons
                       name={cat.icon as keyof typeof Ionicons.glyphMap}
@@ -241,9 +252,15 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
             </View>
           )}
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+            <Text style={styles.contextHint}>{getContextHint()}</Text>
+
             <View style={styles.heroGlassCard}>
-              <View style={styles.heroGlow} />
+              <View style={[styles.heroIconRing, { borderColor: activeCategory.color + '40' }]}>
+                <View style={[styles.heroIconInner, { backgroundColor: activeCategory.color + '15' }]}>
+                  <Ionicons name={activeCategory.icon as keyof typeof Ionicons.glyphMap} size={28} color={activeCategory.color} />
+                </View>
+              </View>
               {type === 'height' && currentUnit === 'ft' ? (
                 <View style={styles.dualArtRow}>
                   <View style={styles.heroArtBox}>
@@ -253,19 +270,20 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
                       value={feetValue}
                       onChangeText={setFeetValue}
                       placeholder="0"
-                      placeholderTextColor="rgba(255,255,255,0.05)"
+                      placeholderTextColor="rgba(255,255,255,0.08)"
                       autoFocus
                     />
                     <Text style={styles.heroArtUnit}>FT</Text>
                   </View>
+                  <Text style={styles.heroDivider}>'</Text>
                   <View style={styles.heroArtBox}>
                     <TextInput
                       style={styles.heroArtInput}
-                      keyboardType="number-pad"
+                      keyboardType="decimal-pad"
                       value={inchesValue}
                       onChangeText={setInchesValue}
                       placeholder="0"
-                      placeholderTextColor="rgba(255,255,255,0.05)"
+                      placeholderTextColor="rgba(255,255,255,0.08)"
                     />
                     <Text style={styles.heroArtUnit}>IN</Text>
                   </View>
@@ -276,20 +294,20 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
                     style={styles.heroArtInput}
                     value={value}
                     onChangeText={setValue}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     placeholder="0"
-                    placeholderTextColor="rgba(255,255,255,0.05)"
+                    placeholderTextColor="rgba(255,255,255,0.08)"
                     autoFocus
                   />
-                  <Text style={styles.heroArtUnit}>{currentUnit.toUpperCase()}</Text>
+                  <Text style={[styles.heroArtUnit, { color: activeCategory.color }]}>{currentUnit.toUpperCase()}</Text>
                 </View>
               )}
             </View>
 
             <View style={styles.quickBarArtistic}>
               {getQuickAddOptions().map((v) => (
-                <TouchableOpacity key={v} onPress={() => handleQuickAdd(v)} style={styles.quickArtBtn}>
-                  <Text style={styles.quickArtBtnText}>+{v}</Text>
+                <TouchableOpacity key={v} onPress={() => handleQuickAdd(v)} style={[styles.quickArtBtn, { borderColor: activeCategory.color + '20' }]}>
+                  <Text style={[styles.quickArtBtnText, { color: activeCategory.color }]}>+{v}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -339,16 +357,28 @@ export const LogMetricModal: React.FC<LogMetricModalProps> = ({
                           <Text style={styles.macroLuxUnit}>GRAMS</Text>
                         </View>
                       ))}
-                      {/* <TouchableOpacity style={styles.calcArtBtn} onPress={calculateCaloriesFromMacros}>
-                        <Ionicons name="sync" size={16} color={THEME.colors.primary} />
-                        <Text style={styles.calcArtBtnText}>Auto-calculate Calories</Text>
-                      </TouchableOpacity> */}
+                      <TouchableOpacity style={styles.calcArtBtn} onPress={calculateCaloriesFromMacros}>
+                        <Ionicons name="calculator-outline" size={16} color={THEME.colors.primary} />
+                        <Text style={styles.calcArtBtnText}>Calculate from Macros</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
               )}
             </View>
           </ScrollView>
+
+          <View style={styles.saveButtonContainer}>
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={loading}
+              style={[styles.saveButton, { backgroundColor: activeCategory.color }]}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="checkmark-circle" size={22} color={THEME.colors.background} />
+              <Text style={styles.saveButtonText}>{loading ? 'SAVING...' : 'SAVE ENTRY'}</Text>
+            </TouchableOpacity>
+          </View>
 
           {showDatePicker && (
             <DateTimePicker
@@ -394,22 +424,31 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: THEME.spacing.md,
+    marginTop: THEME.spacing.sm,
     marginBottom: THEME.spacing.lg,
   },
   headerActionBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.04)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   headerCenter: {
     alignItems: 'center',
@@ -444,7 +483,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderRadius: 16,
     padding: 2,
-    marginBottom: THEME.spacing.lg,
+    marginBottom: THEME.spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.04)',
   },
@@ -465,11 +504,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   segmentActive: {
-    backgroundColor: THEME.colors.primary,
-    shadowColor: THEME.colors.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
     elevation: 3,
   },
   segmentText: {
@@ -478,50 +515,74 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     letterSpacing: 0.5,
   },
+  contextHint: {
+    fontFamily: THEME.typography.medium,
+    color: THEME.colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: THEME.spacing.md,
+    opacity: 0.6,
+  },
   heroGlassCard: {
-    height: 100,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.01)',
-    borderRadius: 24,
-    marginBottom: THEME.spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.015)',
+    borderRadius: 28,
+    marginBottom: THEME.spacing.lg,
+    paddingVertical: 24,
+    paddingHorizontal: THEME.spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
+    borderColor: 'rgba(255,255,255,0.04)',
     overflow: 'hidden',
   },
-  heroGlow: {
-    position: 'absolute',
+  heroIconRing: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: THEME.colors.primary,
-    opacity: 0.02,
-    filter: 'blur(20px)',
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  heroIconInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   heroArtWrapper: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 4,
+    gap: 6,
   },
   heroArtInput: {
     fontFamily: THEME.typography.black,
     color: THEME.colors.text,
-    fontSize: 36,
+    fontSize: 42,
     textAlign: 'center',
     letterSpacing: -1,
     includeFontPadding: false,
-    minWidth: 60,
+    minWidth: 80,
   },
   heroArtUnit: {
     fontFamily: THEME.typography.black,
     color: THEME.colors.primary,
-    fontSize: 12,
-    opacity: 0.6,
+    fontSize: 13,
+    opacity: 0.7,
     letterSpacing: 2,
+  },
+  heroDivider: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.textMuted,
+    fontSize: 36,
+    opacity: 0.3,
+    marginHorizontal: 4,
   },
   dualArtRow: {
     flexDirection: 'row',
-    gap: 24,
+    alignItems: 'center',
+    gap: 8,
   },
   heroArtBox: {
     alignItems: 'center',
@@ -530,33 +591,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 12,
-    marginBottom: THEME.spacing.lg,
+    marginBottom: THEME.spacing.xl,
   },
   quickArtBtn: {
-    width: 80,
-    height: 52,
-    borderRadius: 16,
+    flex: 1,
+    maxWidth: 100,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.04)',
   },
   quickArtBtnText: {
     fontFamily: THEME.typography.black,
-    color: THEME.colors.text,
-    fontSize: 13,
+    fontSize: 14,
     letterSpacing: 0.5,
   },
   luxuryOptions: {
-    marginBottom: 60,
+    marginBottom: 20,
   },
   bodyPartLUX: {
     marginBottom: THEME.spacing.lg,
   },
   macroIntegratedLUX: {
     backgroundColor: 'rgba(255,255,255,0.02)',
-    borderRadius: 32,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.04)',
     overflow: 'hidden',
@@ -630,10 +690,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     paddingVertical: 14,
-    borderRadius: 20,
-    backgroundColor: 'rgba(141, 224, 166, 0.05)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(141, 224, 166, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(141, 224, 166, 0.1)',
+    borderColor: 'rgba(141, 224, 166, 0.12)',
     marginTop: 8,
   },
   calcArtBtnText: {
@@ -642,5 +702,35 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
+  },
+  saveButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: THEME.spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    paddingTop: 12,
+    backgroundColor: '#0D1117',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.04)',
+  },
+  saveButton: {
+    height: 52,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  saveButtonText: {
+    fontFamily: THEME.typography.black,
+    color: THEME.colors.background,
+    fontSize: 13,
+    letterSpacing: 2,
   },
 });
