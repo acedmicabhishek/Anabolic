@@ -27,5 +27,6 @@ Discover the ultimate premium tracker designed to elevate your fitness journey. 
 
 <div align="center">
   <h3>Ready to see your progress?</h3>
-  <a href="https://github.com/acedmicabhishek/Anabolic/releases/latest">Download Anabolic Now</a> 
+  <a href="https://acedmicabhishek.github.io/Anabolic/">Download Anabolic from Web</a> |
+  <a href="https://github.com/acedmicabhishek/Anabolic/releases/latest">Download via GitHub Releases</a> 
 </div>
