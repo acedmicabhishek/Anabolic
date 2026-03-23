@@ -27,6 +27,11 @@ Discover the ultimate premium tracker designed to elevate your fitness journey. 
 
 <div align="center">
   <h3>Ready to see your progress?</h3>
-  <a href="https://acedmicabhishek.github.io/Anabolic/">Download Anabolic from Web</a> |
-  <a href="https://github.com/acedmicabhishek/Anabolic/releases/latest">Download via GitHub Releases</a> 
+  <a href="https://acedmicabhishek.github.io/Anabolic/">
+    <img src="https://img.shields.io/badge/Download-From_Website-3B82F6?style=for-the-badge&logo=googlechrome" alt="Download Anabolic from Web" />
+  </a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://github.com/acedmicabhishek/Anabolic/releases/latest">
+    <img src="https://img.shields.io/badge/Download-GitHub_Releases-10B981?style=for-the-badge&logo=github" alt="Download via GitHub Releases" />
+  </a> 
 </div>
