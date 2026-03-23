@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Modal, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { THEME } from '../constants/theme';
@@ -15,8 +15,13 @@ export const SettingsScreen: React.FC = () => {
   const currentPrefs = metrics.preferences || { weight: 'kg', height: 'cm', body: 'cm', fluid: 'ml' };
 
   const [isChecking, setIsChecking] = useState(false);
+  const [updateUrl, setUpdateUrl] = useState<string | null>(null);
 
   const checkForUpdates = async () => {
+    if (updateUrl) {
+      Linking.openURL(updateUrl);
+      return;
+    }
     setIsChecking(true);
     try {
       const response = await fetch('https://api.github.com/repos/acedmicabhishek/Anabolic/releases');
@@ -29,11 +34,12 @@ export const SettingsScreen: React.FC = () => {
       }
 
       const latestRelease = releases[0];
-      const latestVersionNum = parseFloat(latestRelease.name || latestRelease.tag_name);
-      const currentVersionNum = 1.0;
+      const latestVersionNum = parseFloat(latestRelease.name || latestRelease.tag_name?.replace('v', ''));
+      const currentVersionNum = 2.0;
 
       if (latestVersionNum > currentVersionNum) {
-        showStatus('Update Found', `v${latestVersionNum} is available via GitHub Repo.`, 'success');
+        setUpdateUrl(latestRelease.html_url);
+        showStatus('Update Found', `v${latestVersionNum} is available via GitHub Repo. Click download.`, 'success');
       } else {
         showStatus('Up to Date', 'You are running the latest version.', 'success');
       }
@@ -253,7 +259,7 @@ export const SettingsScreen: React.FC = () => {
                 <Text style={styles.infoVersion}>v2.0</Text>
               </View>
               <TouchableOpacity onPress={checkForUpdates} disabled={isChecking} style={styles.updateBadge}>
-                <Text style={styles.updateBadgeText}>{isChecking ? '...' : 'Update'}</Text>
+                <Text style={styles.updateBadgeText}>{isChecking ? '...' : updateUrl ? 'Download' : 'Update'}</Text>
               </TouchableOpacity>
             </View>
             <View style={[styles.prefSeparator, { paddingTop: 14 }]}>
@@ -262,6 +268,43 @@ export const SettingsScreen: React.FC = () => {
                 <Text style={styles.dangerActionText}>Purge All Data</Text>
               </TouchableOpacity>
             </View>
+          </LinearGradient>
+        </View>
+
+        {/* Support & Links */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="heart-outline" size={18} color={THEME.colors.primary} />
+            <Text style={styles.sectionTitle}>Support</Text>
+          </View>
+          <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.premiumCard}>
+            <TouchableOpacity 
+              style={[styles.prefRow, { paddingVertical: 14 }]} 
+              onPress={() => Linking.openURL('https://github.com/acedmicabhishek/Anabolic')}
+            >
+              <View style={styles.prefLeft}>
+                <View style={styles.iconCircle}>
+                  <Ionicons name="logo-github" size={14} color={THEME.colors.primary} />
+                </View>
+                <Text style={styles.prefLabel}>GitHub Repository</Text>
+              </View>
+              <Ionicons name="open-outline" size={14} color={THEME.colors.textSecondary} />
+            </TouchableOpacity>
+
+            <View style={styles.prefSeparator} />
+
+            <TouchableOpacity 
+              style={[styles.prefRow, { paddingVertical: 14 }]} 
+              onPress={() => Linking.openURL('upi://pay?pa=6299094152@ibl&pn=Anabolic&cu=INR')}
+            >
+              <View style={styles.prefLeft}>
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+                  <Ionicons name="cafe-outline" size={14} color="#3B82F6" />
+                </View>
+                <Text style={styles.prefLabel}>Donate (UPI)</Text>
+              </View>
+              <Ionicons name="open-outline" size={14} color={THEME.colors.textSecondary} />
+            </TouchableOpacity>
           </LinearGradient>
         </View>
       </ScrollView>
