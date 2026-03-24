@@ -7,7 +7,7 @@
     <img src="https://img.shields.io/badge/Download-Latest_Release-10B981?style=for-the-badge&logo=android" alt="Download Latest Release" />
   </a>
   <img src="https://img.shields.io/github/downloads/acedmicabhishek/Anabolic/total.svg?style=for-the-badge&color=3B82F6" alt="Total Downloads" />
-
+[Downloads](https://img.shields.io/github/downloads/acedmicabhishek/FaceLabsDownload/total)
   <br/><br/>
   <img src="readmecontent/preview.jpg" alt="App Preview" width="600" style="border-radius: 16px;" />
 </div>
